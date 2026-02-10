@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aurora Design System - Basic Example</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../aurora.css">
+</head>
+<body>
+  <!-- Aurora Background (at root level, sibling to app-shell) -->
+  <div class="aurora-bg"></div>
+  <div class="shape shape-1"></div>
+  <div class="shape shape-2"></div>
+  <div class="shape shape-3"></div>
+
+  <!-- App Shell (sibling to background) -->
+  <div class="app-shell">
+    <!-- Glassmorphic Sidebar -->
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="logo-block">
+        <img src="../assets/nelnet-logo.svg" alt="Logo" class="logo-image">
+        <div class="logo-subtitle">Analytics Dashboard</div>
+      </div>
+
+      <div class="nav-list">
+        <a href="#" class="nav-link active">
+          <span>Overview</span>
+          <span class="pill">KPIs</span>
+        </a>
+        <a href="#" class="nav-link">
+          <span>Analytics</span>
+          <span class="pill">Charts</span>
+        </a>
+        <a href="#" class="nav-link">
+          <span>Reports</span>
+          <span class="pill">Data</span>
+        </a>
+        <a href="#" class="nav-link">
+          <span>Settings</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Area (contains topbar + content) -->
+    <main class="main">
+      <!-- Top Header Bar -->
+      <header class="topbar">
+        <h1 class="topbar-title">Dashboard Overview</h1>
+      </header>
+
+      <!-- Content Section -->
+      <section class="content">
+        <!-- KPI Cards Row -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Revenue</div>
+            <div class="kpi-value">$124,500</div>
+            <div class="kpi-trend trend-up">+15.3% vs last month</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Active Users</div>
+            <div class="kpi-value">8,432</div>
+            <div class="kpi-trend trend-up">+8.7% vs last month</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Conversion Rate</div>
+            <div class="kpi-value">3.24%</div>
+            <div class="kpi-trend trend-down">-2.1% vs last month</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Avg. Session</div>
+            <div class="kpi-value">4m 32s</div>
+            <div class="kpi-trend trend-up">+12.8% vs last month</div>
+          </div>
+        </div>
+
+        <!-- Chart Cards Row -->
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3 class="chart-title">Monthly Performance</h3>
+            </div>
+            <div class="chart-body">
+              <p style="color: var(--text-secondary); padding: 2rem; text-align: center;">
+                Your chart or content goes here.<br>
+                Use any charting library (Chart.js, D3, etc.)
+              </p>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3 class="chart-title">User Distribution</h3>
+            </div>
+            <div class="chart-body">
+              <p style="color: var(--text-secondary); padding: 2rem; text-align: center;">
+                Another chart placeholder.<br>
+                The glassmorphic card styling is automatic.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full-width Card -->
+        <div class="chart-card" style="margin-top: 1.5rem;">
+          <div class="chart-header">
+            <h3 class="chart-title">Recent Activity</h3>
+          </div>
+          <div class="chart-body">
+            <table style="width: 100%; border-collapse: collapse; color: var(--text-primary);">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border-subtle);">
+                  <th style="text-align: left; padding: 0.75rem; font-weight: 600;">Event</th>
+                  <th style="text-align: left; padding: 0.75rem; font-weight: 600;">User</th>
+                  <th style="text-align: left; padding: 0.75rem; font-weight: 600;">Time</th>
+                  <th style="text-align: left; padding: 0.75rem; font-weight: 600;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid var(--border-subtle);">
+                  <td style="padding: 0.75rem;">New signup</td>
+                  <td style="padding: 0.75rem; color: var(--text-secondary);">john@example.com</td>
+                  <td style="padding: 0.75rem; color: var(--text-secondary);">2 mins ago</td>
+                  <td style="padding: 0.75rem;"><span style="color: var(--aurora-green);">Completed</span></td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--border-subtle);">
+                  <td style="padding: 0.75rem;">Payment received</td>
+                  <td style="padding: 0.75rem; color: var(--text-secondary);">sarah@example.com</td>
+                  <td style="padding: 0.75rem; color: var(--text-secondary);">15 mins ago</td>
+                  <td style="padding: 0.75rem;"><span style="color: var(--aurora-green);">Completed</span></td>
+                </tr>
+                <tr>
+                  <td style="padding: 0.75rem;">Support ticket</td>
+                  <td style="padding: 0.75rem; color: var(--text-secondary);">mike@example.com</td>
+                  <td style="padding: 0.75rem; color: var(--text-secondary);">1 hour ago</td>
+                  <td style="padding: 0.75rem;"><span style="color: var(--aurora-cyan);">Pending</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

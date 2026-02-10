@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="aurora-styling/aurora.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <!-- Aurora Background -->
+  <div class="aurora-bg"></div>
+  <div class="shape shape-1"></div>
+  <div class="shape shape-2"></div>
+  <div class="shape shape-3"></div>
+
+  <!-- App Shell -->
+  <div class="app-shell">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="logo-block">
+        <img src="aurora-styling/assets/nelnet-logo.svg" alt="Nelnet Logo" class="logo-image">
+        <div class="logo-subtitle">Analytics Hub</div>
+      </div>
+
+      <nav class="nav-section">
+        <div class="nav-list">
+          <a href="#requests-section" class="nav-link active" data-section="requests">
+            <span>Requests</span>
+            <span class="pill" id="nav-requests-count">0</span>
+          </a>
+          <a href="#in-progress-section" class="nav-link" data-section="in-progress">
+            <span>In Progress</span>
+            <span class="pill" id="nav-progress-count">0</span>
+          </a>
+          <a href="#reports-section" class="nav-link" data-section="reports">
+            <span>Reports</span>
+            <span class="pill" id="nav-reports-count">0</span>
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <p>Internal analytics request tracking and report archive for the NFS team.</p>
+      </div>
+    </aside>
+
+    <!-- Main Area -->
+    <main class="main">
+      <!-- Top Header Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="topbar-title">Analytics Hub</h1>
+        </div>
+        <div class="topbar-right">
+          <div class="search-container">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.3-4.3"></path>
+            </svg>
+            <input
+              type="search"
+              id="global-search"
+              class="search-input"
+              placeholder="Search all sections..."
+              aria-label="Search requests, in-progress items, and reports"
+            >
+          </div>
+        </div>
+      </header>
+
+      <!-- Content Section -->
+      <section class="content">
+        <!-- Two-column Hub Layout -->
+        <div class="hub-layout">
+          <!-- Left Column: Requests + In Progress -->
+          <div class="hub-left-column">
+
+            <!-- REQUESTS SECTION -->
+            <section class="hub-section" id="requests-section">
+              <div class="section-header">
+                <h2 class="section-title">Requests</h2>
+                <button class="toggle-form-btn" id="toggle-request-form" aria-expanded="false">
+                  + New Request
+                </button>
+              </div>
+
+              <!-- New Request Form (collapsible) -->
+              <div class="form-container" id="request-form-container" hidden>
+                <form id="new-request-form" class="chart-card form-card">
+                  <h3 class="form-title">Submit New Request</h3>
+
+                  <div class="form-group">
+                    <label for="request-project">Project Name</label>
+                    <input
+                      type="text"
+                      id="request-project"
+                      name="projectName"
+                      list="project-suggestions"
+                      placeholder="Enter or select project..."
+                      required
+                    >
+                    <datalist id="project-suggestions"></datalist>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="request-description">Description</label>
+                    <textarea
+                      id="request-description"
+                      name="description"
+                      rows="3"
+                      placeholder="Describe what you need..."
+                      required
+                    ></textarea>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="request-requester">Requester Name</label>
+                      <input
+                        type="text"
+                        id="request-requester"
+                        name="requester"
+                        placeholder="Your name"
+                        required
+                      >
+                    </div>
+
+                    <div class="form-group">
+                      <label for="request-urgency">Urgency</label>
+                      <select id="request-urgency" name="urgency" required>
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancel-request">Cancel</button>
+                    <button type="submit" class="btn-primary">Submit Request</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Request Queue -->
+              <div class="request-queue" id="request-queue">
+                <!-- Dynamically populated -->
+              </div>
+            </section>
+
+            <!-- IN PROGRESS SECTION -->
+            <section class="hub-section" id="in-progress-section">
+              <div class="section-header">
+                <h2 class="section-title">In Progress</h2>
+                <button class="toggle-form-btn" id="toggle-progress-form" aria-expanded="false">
+                  + Add Item
+                </button>
+              </div>
+
+              <!-- Add In Progress Form (collapsible) -->
+              <div class="form-container" id="progress-form-container" hidden>
+                <form id="new-progress-form" class="chart-card form-card">
+                  <h3 class="form-title">Add In Progress Item</h3>
+
+                  <div class="form-group">
+                    <label for="progress-project">Project Name</label>
+                    <input
+                      type="text"
+                      id="progress-project"
+                      name="projectName"
+                      list="project-suggestions"
+                      placeholder="Enter or select project..."
+                      required
+                    >
+                  </div>
+
+                  <div class="form-group">
+                    <label for="progress-description">Task Description</label>
+                    <textarea
+                      id="progress-description"
+                      name="taskDescription"
+                      rows="2"
+                      placeholder="What are you working on..."
+                      required
+                    ></textarea>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="progress-requester">Requester</label>
+                      <input
+                        type="text"
+                        id="progress-requester"
+                        name="requester"
+                        placeholder="Who requested this"
+                        required
+                      >
+                    </div>
+
+                    <div class="form-group">
+                      <label for="progress-status">Status</label>
+                      <select id="progress-status" name="status" required>
+                        <option value="not-started">Not Started</option>
+                        <option value="in-progress" selected>In Progress</option>
+                        <option value="in-review">In Review</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="progress-target-date">Target Completion Date</label>
+                    <input
+                      type="date"
+                      id="progress-target-date"
+                      name="targetCompletionDate"
+                    >
+                  </div>
+
+                  <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancel-progress">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Item</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- In Progress List -->
+              <div class="progress-list" id="progress-list">
+                <!-- Dynamically populated -->
+              </div>
+            </section>
+          </div>
+
+          <!-- Right Column: Reports -->
+          <div class="hub-right-column">
+            <section class="hub-section" id="reports-section">
+              <div class="section-header">
+                <h2 class="section-title">Reports</h2>
+                <div class="section-controls">
+                  <label class="toggle-label">
+                    <input type="checkbox" id="active-projects-toggle" checked>
+                    <span class="toggle-switch"></span>
+                    <span class="toggle-text">Active only</span>
+                  </label>
+                  <div class="search-container search-small">
+                    <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                    <input
+                      type="search"
+                      id="reports-search"
+                      class="search-input"
+                      placeholder="Filter reports..."
+                    >
+                  </div>
+                  <button class="toggle-form-btn" id="toggle-report-form" aria-expanded="false">
+                    + Add Report
+                  </button>
+                </div>
+              </div>
+
+              <!-- Add Report Form (collapsible) -->
+              <div class="form-container" id="report-form-container" hidden>
+                <form id="new-report-form" class="chart-card form-card">
+                  <h3 class="form-title">Add New Report</h3>
+
+                  <div class="form-group">
+                    <label for="report-title">Report Title</label>
+                    <input
+                      type="text"
+                      id="report-title"
+                      name="title"
+                      placeholder="e.g., Monthly Revenue Report - January 2026"
+                      required
+                    >
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="report-project">Project Name</label>
+                      <input
+                        type="text"
+                        id="report-project"
+                        name="projectName"
+                        list="project-suggestions"
+                        placeholder="Enter or select project..."
+                        required
+                      >
+                    </div>
+                    <div class="form-group">
+                      <label for="report-date">Date Published</label>
+                      <input
+                        type="date"
+                        id="report-date"
+                        name="datePublished"
+                        required
+                      >
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="report-description">Description</label>
+                    <textarea
+                      id="report-description"
+                      name="description"
+                      rows="2"
+                      placeholder="Brief summary of the report..."
+                    ></textarea>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="report-link">Link URL</label>
+                    <input
+                      type="url"
+                      id="report-link"
+                      name="linkUrl"
+                      placeholder="https://..."
+                    >
+                  </div>
+
+                  <div class="form-group">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="report-active" name="isActive" checked>
+                      <span>Active project</span>
+                    </label>
+                  </div>
+
+                  <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancel-report">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Report</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Reports Container (grouped by project) -->
+              <div class="reports-container" id="reports-container">
+                <!-- Dynamically populated -->
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
