@@ -7,9 +7,9 @@ const AppRouter = (function() {
   'use strict';
 
   let state = {
-    currentView: 'home', // 'home' | 'client' | 'manage-clients'
+    currentView: 'home', // 'home' | 'project' | 'manage-projects'
     selectedDivisionId: null,
-    selectedClientId: null,
+    selectedProjectId: null,
     activeZone: 1, // 1, 2, or 3
     expandedDivisions: [],
     globalSearchTerm: '',
@@ -35,19 +35,19 @@ const AppRouter = (function() {
     triggerRender();
   }
 
-  function selectClient(clientId) {
-    const client = DataStore.getClientById(clientId);
-    if (!client) return;
+  function selectProject(projectId) {
+    const project = DataStore.getProjectById(projectId);
+    if (!project) return;
 
-    state.currentView = 'client';
-    state.selectedClientId = clientId;
-    state.selectedDivisionId = client.divisionId;
+    state.currentView = 'project';
+    state.selectedProjectId = projectId;
+    state.selectedDivisionId = project.divisionId;
     state.activeZone = 1;
     state.reportsSearchTerm = '';
 
     // Auto-expand the parent division
-    if (!state.expandedDivisions.includes(client.divisionId)) {
-      state.expandedDivisions.push(client.divisionId);
+    if (!state.expandedDivisions.includes(project.divisionId)) {
+      state.expandedDivisions.push(project.divisionId);
     }
 
     triggerRender();
@@ -86,7 +86,7 @@ const AppRouter = (function() {
 
   function goHome() {
     state.currentView = 'home';
-    state.selectedClientId = null;
+    state.selectedProjectId = null;
     state.selectedDivisionId = null;
     state.activeZone = 1;
     state.globalSearchTerm = '';
@@ -102,7 +102,7 @@ const AppRouter = (function() {
     init,
     getState,
     navigate,
-    selectClient,
+    selectProject,
     setActiveZone,
     toggleDivision,
     setGlobalSearch,

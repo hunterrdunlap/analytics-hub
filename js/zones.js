@@ -1,7 +1,7 @@
 /**
  * Analytics Hub - Zone Renderers
  * Renders Zone 1 (Reports & Documents), Zone 2 (Performance Monitoring),
- * and Zone 3 (Controls & Oversight) content for a selected client.
+ * and Zone 3 (Controls & Oversight) content for a selected project.
  */
 
 const ZoneRenderer = (function() {
@@ -57,28 +57,20 @@ const ZoneRenderer = (function() {
   // ZONE 1: REPORTS & DOCUMENTS
   // =====================
 
-  function renderZone1(container, clientId) {
+  function renderZone1(container, projectId) {
     const state = AppRouter.getState();
-    const legalDocs = DataStore.getDocuments(clientId, 'legal');
-    const pricingDocs = DataStore.getDocuments(clientId, 'pricing');
-    const recurringDocs = DataStore.getDocuments(clientId, 'recurring');
-    let reports = DataStore.getReportsByClient(clientId, state.showActiveProjectsOnly);
+    const legalDocs = DataStore.getDocuments(projectId, 'legal');
+    const pricingDocs = DataStore.getDocuments(projectId, 'pricing');
+    const recurringDocs = DataStore.getDocuments(projectId, 'recurring');
+    let reports = DataStore.getReportsByProject(projectId, state.showActiveProjectsOnly);
 
     // Apply reports search
     if (state.reportsSearchTerm) {
-      reports = DataStore.filterBySearchTerm(reports, state.reportsSearchTerm, ['title', 'projectName', 'description']);
+      reports = DataStore.filterBySearchTerm(reports, state.reportsSearchTerm, ['title', 'description']);
     }
     if (state.globalSearchTerm) {
-      reports = DataStore.filterBySearchTerm(reports, state.globalSearchTerm, ['title', 'projectName', 'description']);
+      reports = DataStore.filterBySearchTerm(reports, state.globalSearchTerm, ['title', 'description']);
     }
-
-    // Group reports by project
-    const grouped = {};
-    reports.forEach(report => {
-      if (!grouped[report.projectName]) grouped[report.projectName] = [];
-      grouped[report.projectName].push(report);
-    });
-    const projectNames = Object.keys(grouped).sort();
 
     container.innerHTML = `
       <div class="zone-layout">
@@ -143,22 +135,8 @@ const ZoneRenderer = (function() {
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label for="report-project">Project Name</label>
-                <input type="text" id="report-project" name="projectName" list="project-suggestions" placeholder="Enter or select project..." required>
-              </div>
-              <div class="form-group">
                 <label for="report-date">Date Published</label>
                 <input type="date" id="report-date" name="datePublished" required>
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="report-description">Description</label>
-              <textarea id="report-description" name="description" rows="2" placeholder="Brief summary of the report..."></textarea>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="report-link">Link URL</label>
-                <input type="url" id="report-link" name="linkUrl" placeholder="https://...">
               </div>
               <div class="form-group">
                 <label for="report-source">Source</label>
@@ -170,9 +148,17 @@ const ZoneRenderer = (function() {
               </div>
             </div>
             <div class="form-group">
+              <label for="report-description">Description</label>
+              <textarea id="report-description" name="description" rows="2" placeholder="Brief summary of the report..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="report-link">Link URL</label>
+              <input type="url" id="report-link" name="linkUrl" placeholder="https://...">
+            </div>
+            <div class="form-group">
               <label class="checkbox-label">
                 <input type="checkbox" id="report-active" name="isActive" checked>
-                <span>Active project</span>
+                <span>Active</span>
               </label>
             </div>
             <div class="form-actions">
@@ -219,9 +205,9 @@ const ZoneRenderer = (function() {
             </div>
           ` : ''}
 
-          <div class="reports-container" id="reports-container">
-            ${projectNames.length > 0
-              ? projectNames.map(project => renderReportGroup(project, grouped[project])).join('')
+          <div class="report-grid" id="reports-container">
+            ${reports.length > 0
+              ? reports.map(renderReportCard).join('')
               : (recurringDocs.length === 0 ? renderEmptyState('No recurring reports yet. Add a report or document above.') : '')}
           </div>
         </div>
@@ -234,7 +220,7 @@ const ZoneRenderer = (function() {
       reportDateInput.value = new Date().toISOString().split('T')[0];
     }
 
-    bindZone1Events(container, clientId);
+    bindZone1Events(container, projectId);
   }
 
   function renderDocumentCard(doc) {
@@ -270,17 +256,6 @@ const ZoneRenderer = (function() {
     `;
   }
 
-  function renderReportGroup(projectName, reports) {
-    return `
-      <div class="report-group" data-project="${escapeHtml(projectName)}">
-        <h4 class="report-subgroup-title">${escapeHtml(projectName)}</h4>
-        <div class="report-grid">
-          ${reports.map(renderReportCard).join('')}
-        </div>
-      </div>
-    `;
-  }
-
   function renderReportCard(report) {
     const dateFormatted = formatDate(report.datePublished);
     const descriptionTruncated = truncateText(report.description, 100);
@@ -313,7 +288,7 @@ const ZoneRenderer = (function() {
     `;
   }
 
-  function bindZone1Events(container, clientId) {
+  function bindZone1Events(container, projectId) {
     // Toggle forms
     const toggleDocBtn = container.querySelector('#toggle-document-form');
     const toggleRptBtn = container.querySelector('#toggle-report-form');
@@ -356,16 +331,15 @@ const ZoneRenderer = (function() {
     if (docForm) {
       docForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const client = DataStore.getClientById(clientId);
         DataStore.addDocument({
-          clientId: clientId,
+          projectId: projectId,
           category: document.getElementById('doc-category').value,
           title: document.getElementById('doc-title').value,
           description: document.getElementById('doc-description').value,
           linkUrl: document.getElementById('doc-link').value,
           source: document.getElementById('doc-source').value
         });
-        renderZone1(container, clientId);
+        renderZone1(container, projectId);
       });
     }
 
@@ -374,19 +348,18 @@ const ZoneRenderer = (function() {
     if (rptForm) {
       rptForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const client = DataStore.getClientById(clientId);
+        const project = DataStore.getProjectById(projectId);
         DataStore.addReport({
-          clientId: clientId,
-          divisionId: client ? client.divisionId : null,
+          projectId: projectId,
+          divisionId: project ? project.divisionId : null,
           title: document.getElementById('report-title').value,
-          projectName: document.getElementById('report-project').value,
           datePublished: document.getElementById('report-date').value,
           description: document.getElementById('report-description').value,
           linkUrl: document.getElementById('report-link').value,
           isActive: document.getElementById('report-active').checked,
           category: 'recurring'
         });
-        renderZone1(container, clientId);
+        renderZone1(container, projectId);
       });
     }
 
@@ -417,12 +390,12 @@ const ZoneRenderer = (function() {
         if (action === 'delete-document') {
           if (confirm('Delete this document?')) {
             DataStore.deleteDocument(id);
-            renderZone1(container, clientId);
+            renderZone1(container, projectId);
           }
         } else if (action === 'delete-report') {
           if (confirm('Delete this report?')) {
             DataStore.deleteReport(id);
-            renderZone1(container, clientId);
+            renderZone1(container, projectId);
           }
         }
         return;
@@ -434,7 +407,7 @@ const ZoneRenderer = (function() {
       // Open modal on card click
       const card = e.target.closest('[data-entity-type]');
       if (card) {
-        App.openModal(card.dataset.entityType, card.dataset.entityId, clientId);
+        App.openModal(card.dataset.entityType, card.dataset.entityId, projectId);
       }
     });
   }
@@ -443,9 +416,9 @@ const ZoneRenderer = (function() {
   // ZONE 2: PERFORMANCE MONITORING
   // =====================
 
-  function renderZone2(container, clientId) {
-    const perfLinks = DataStore.getDashboardLinks(clientId, 'performance');
-    const valLinks = DataStore.getDashboardLinks(clientId).filter(l => l.type === 'valuation' || l.type === 'impairment');
+  function renderZone2(container, projectId) {
+    const perfLinks = DataStore.getDashboardLinks(projectId, 'performance');
+    const valLinks = DataStore.getDashboardLinks(projectId).filter(l => l.type === 'valuation' || l.type === 'impairment');
 
     container.innerHTML = `
       <div class="zone-layout">
@@ -505,7 +478,7 @@ const ZoneRenderer = (function() {
       </div>
     `;
 
-    bindZone2Events(container, clientId);
+    bindZone2Events(container, projectId);
   }
 
   function renderDashboardCard(link) {
@@ -541,7 +514,7 @@ const ZoneRenderer = (function() {
     `;
   }
 
-  function bindZone2Events(container, clientId) {
+  function bindZone2Events(container, projectId) {
     const toggleBtn = container.querySelector('#toggle-dashboard-form');
     const formContainer = container.querySelector('#dashboard-form-container');
 
@@ -570,13 +543,13 @@ const ZoneRenderer = (function() {
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         DataStore.addDashboardLink({
-          clientId: clientId,
+          projectId: projectId,
           title: document.getElementById('dash-title').value,
           url: document.getElementById('dash-url').value,
           type: document.getElementById('dash-type').value,
           description: document.getElementById('dash-description').value
         });
-        renderZone2(container, clientId);
+        renderZone2(container, projectId);
       });
     }
 
@@ -586,7 +559,7 @@ const ZoneRenderer = (function() {
       if (btn) {
         if (confirm('Delete this dashboard link?')) {
           DataStore.deleteDashboardLink(btn.dataset.id);
-          renderZone2(container, clientId);
+          renderZone2(container, projectId);
         }
         return;
       }
@@ -597,7 +570,7 @@ const ZoneRenderer = (function() {
       // Open modal on card click
       const card = e.target.closest('[data-entity-type]');
       if (card) {
-        App.openModal(card.dataset.entityType, card.dataset.entityId, clientId);
+        App.openModal(card.dataset.entityType, card.dataset.entityId, projectId);
       }
     });
   }
@@ -606,16 +579,16 @@ const ZoneRenderer = (function() {
   // ZONE 3: CONTROLS & OVERSIGHT
   // =====================
 
-  function renderZone3(container, clientId) {
+  function renderZone3(container, projectId) {
     const state = AppRouter.getState();
-    const controls = DataStore.getControlItems(clientId);
-    let requests = DataStore.getRequestsByClient(clientId);
-    let inProgress = DataStore.getInProgressByClient(clientId);
+    const controls = DataStore.getControlItems(projectId);
+    let requests = DataStore.getRequestsByProject(projectId);
+    let inProgress = DataStore.getInProgressByProject(projectId);
 
     // Apply global search
     if (state.globalSearchTerm) {
-      requests = DataStore.filterBySearchTerm(requests, state.globalSearchTerm, ['projectName', 'description', 'requester']);
-      inProgress = DataStore.filterBySearchTerm(inProgress, state.globalSearchTerm, ['projectName', 'taskDescription', 'requester']);
+      requests = DataStore.filterBySearchTerm(requests, state.globalSearchTerm, ['description', 'requester']);
+      inProgress = DataStore.filterBySearchTerm(inProgress, state.globalSearchTerm, ['taskDescription', 'requester']);
     }
 
     container.innerHTML = `
@@ -681,7 +654,7 @@ const ZoneRenderer = (function() {
           </div>
         </section>
 
-        <!-- Requests Section (client-scoped) -->
+        <!-- Requests Section -->
         <section class="hub-section">
           <div class="section-header">
             <h2 class="section-title">Requests</h2>
@@ -692,10 +665,6 @@ const ZoneRenderer = (function() {
           <div class="form-container" id="request-form-container" hidden>
             <form id="new-request-form" class="chart-card form-card">
               <h3 class="form-title">Submit New Request</h3>
-              <div class="form-group">
-                <label for="request-project">Project Name</label>
-                <input type="text" id="request-project" name="projectName" list="project-suggestions" placeholder="Enter or select project..." required>
-              </div>
               <div class="form-group">
                 <label for="request-description">Description</label>
                 <textarea id="request-description" name="description" rows="3" placeholder="Describe what you need..." required></textarea>
@@ -722,11 +691,11 @@ const ZoneRenderer = (function() {
           </div>
 
           <div class="request-queue" id="request-queue">
-            ${requests.length > 0 ? requests.map(renderRequestCard).join('') : renderEmptyState('No requests for this client.')}
+            ${requests.length > 0 ? requests.map(renderRequestCard).join('') : renderEmptyState('No requests for this project.')}
           </div>
         </section>
 
-        <!-- In Progress Section (client-scoped) -->
+        <!-- In Progress Section -->
         <section class="hub-section">
           <div class="section-header">
             <h2 class="section-title">In Progress</h2>
@@ -737,10 +706,6 @@ const ZoneRenderer = (function() {
           <div class="form-container" id="progress-form-container" hidden>
             <form id="new-progress-form" class="chart-card form-card">
               <h3 class="form-title">Add In Progress Item</h3>
-              <div class="form-group">
-                <label for="progress-project">Project Name</label>
-                <input type="text" id="progress-project" name="projectName" list="project-suggestions" placeholder="Enter or select project..." required>
-              </div>
               <div class="form-group">
                 <label for="progress-description">Task Description</label>
                 <textarea id="progress-description" name="taskDescription" rows="2" placeholder="What are you working on..." required></textarea>
@@ -771,13 +736,13 @@ const ZoneRenderer = (function() {
           </div>
 
           <div class="progress-list" id="progress-list">
-            ${inProgress.length > 0 ? inProgress.map(renderProgressCard).join('') : renderEmptyState('No items in progress for this client.')}
+            ${inProgress.length > 0 ? inProgress.map(renderProgressCard).join('') : renderEmptyState('No items in progress for this project.')}
           </div>
         </section>
       </div>
     `;
 
-    bindZone3Events(container, clientId);
+    bindZone3Events(container, projectId);
   }
 
   function renderControlCard(item) {
@@ -820,7 +785,7 @@ const ZoneRenderer = (function() {
     return `
       <article class="request-card kpi-card" data-id="${request.id}" data-urgency="${request.urgency}" data-entity-type="request" data-entity-id="${request.id}">
         <div class="card-header">
-          <span class="project-name">${escapeHtml(request.projectName)}</span>
+          <span class="project-name">${escapeHtml(truncateText(request.description, 60))}</span>
           <span class="urgency-badge urgency-${request.urgency}">${capitalize(request.urgency)}</span>
         </div>
         <p class="card-description">${escapeHtml(descriptionTruncated)}</p>
@@ -850,7 +815,7 @@ const ZoneRenderer = (function() {
     return `
       <article class="progress-card chart-card" data-id="${item.id}" data-entity-type="progress" data-entity-id="${item.id}">
         <div class="card-header">
-          <span class="project-name">${escapeHtml(item.projectName)}</span>
+          <span class="project-name">${escapeHtml(truncateText(item.taskDescription, 60))}</span>
           <span class="target-date">${icons.clock} ${targetDateFormatted}</span>
         </div>
         <p class="card-description">${escapeHtml(item.taskDescription)}</p>
@@ -879,7 +844,7 @@ const ZoneRenderer = (function() {
     `;
   }
 
-  function bindZone3Events(container, clientId) {
+  function bindZone3Events(container, projectId) {
     // Toggle form helpers
     function setupToggle(toggleId, containerId) {
       const btn = container.querySelector('#' + toggleId);
@@ -920,7 +885,7 @@ const ZoneRenderer = (function() {
       controlForm.addEventListener('submit', (e) => {
         e.preventDefault();
         DataStore.addControlItem({
-          clientId: clientId,
+          projectId: projectId,
           title: document.getElementById('ctrl-title').value,
           description: document.getElementById('ctrl-description').value,
           assignee: document.getElementById('ctrl-assignee').value,
@@ -928,7 +893,7 @@ const ZoneRenderer = (function() {
           nextDue: document.getElementById('ctrl-next-due').value || null,
           status: document.getElementById('ctrl-status').value
         });
-        renderZone3(container, clientId);
+        renderZone3(container, projectId);
       });
     }
 
@@ -937,16 +902,15 @@ const ZoneRenderer = (function() {
     if (requestForm) {
       requestForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const client = DataStore.getClientById(clientId);
+        const project = DataStore.getProjectById(projectId);
         DataStore.addRequest({
-          clientId: clientId,
-          divisionId: client ? client.divisionId : null,
-          projectName: document.getElementById('request-project').value,
+          projectId: projectId,
+          divisionId: project ? project.divisionId : null,
           description: document.getElementById('request-description').value,
           requester: document.getElementById('request-requester').value,
           urgency: document.getElementById('request-urgency').value
         });
-        renderZone3(container, clientId);
+        renderZone3(container, projectId);
       });
     }
 
@@ -955,17 +919,16 @@ const ZoneRenderer = (function() {
     if (progressForm) {
       progressForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const client = DataStore.getClientById(clientId);
+        const project = DataStore.getProjectById(projectId);
         DataStore.addInProgressItem({
-          clientId: clientId,
-          divisionId: client ? client.divisionId : null,
-          projectName: document.getElementById('progress-project').value,
+          projectId: projectId,
+          divisionId: project ? project.divisionId : null,
           taskDescription: document.getElementById('progress-description').value,
           requester: document.getElementById('progress-requester').value,
           status: document.getElementById('progress-status').value,
           targetCompletionDate: document.getElementById('progress-target-date').value || null
         });
-        renderZone3(container, clientId);
+        renderZone3(container, projectId);
       });
     }
 
@@ -986,7 +949,7 @@ const ZoneRenderer = (function() {
           case 'delete-control':
             if (confirm('Delete this control item?')) {
               DataStore.deleteControlItem(id);
-              renderZone3(container, clientId);
+              renderZone3(container, projectId);
             }
             break;
           case 'complete-control':
@@ -994,39 +957,38 @@ const ZoneRenderer = (function() {
               lastCompleted: new Date().toISOString(),
               status: 'current'
             });
-            renderZone3(container, clientId);
+            renderZone3(container, projectId);
             break;
           case 'delete-request':
             if (confirm('Delete this request?')) {
               DataStore.deleteRequest(id);
-              renderZone3(container, clientId);
+              renderZone3(container, projectId);
             }
             break;
           case 'promote':
             const request = DataStore.getRequestById(id);
             if (request) {
               DataStore.addInProgressItem({
-                projectName: request.projectName,
                 taskDescription: request.description,
                 requester: request.requester,
                 status: 'not-started',
                 targetCompletionDate: null,
-                clientId: clientId,
+                projectId: projectId,
                 divisionId: request.divisionId
               });
               DataStore.deleteRequest(id);
-              renderZone3(container, clientId);
+              renderZone3(container, projectId);
             }
             break;
           case 'delete-progress':
             if (confirm('Delete this item?')) {
               DataStore.deleteInProgressItem(id);
-              renderZone3(container, clientId);
+              renderZone3(container, projectId);
             }
             break;
           case 'complete-progress':
             DataStore.deleteInProgressItem(id);
-            renderZone3(container, clientId);
+            renderZone3(container, projectId);
             break;
         }
         return;
@@ -1038,7 +1000,7 @@ const ZoneRenderer = (function() {
       // Open modal on card click
       const card = e.target.closest('[data-entity-type]');
       if (card) {
-        App.openModal(card.dataset.entityType, card.dataset.entityId, clientId);
+        App.openModal(card.dataset.entityType, card.dataset.entityId, projectId);
       }
     });
   }

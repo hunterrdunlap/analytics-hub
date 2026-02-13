@@ -1,20 +1,20 @@
 /**
  * Analytics Hub - Data Layer
  * Handles localStorage operations for all entities:
- * divisions, clients, requests, in-progress items, reports,
+ * divisions, projects, requests, in-progress items, reports,
  * documents, dashboard links, and control items.
  */
 
 const DataStore = (function() {
   'use strict';
 
-  const SCHEMA_VERSION = 1;
+  const SCHEMA_VERSION = 2;
 
   const KEYS = {
     REQUESTS: 'analyticsHub_requests',
     IN_PROGRESS: 'analyticsHub_inProgress',
     REPORTS: 'analyticsHub_reports',
-    CLIENTS: 'analyticsHub_clients',
+    PROJECTS: 'analyticsHub_projects',
     DOCUMENTS: 'analyticsHub_documents',
     DASHBOARD_LINKS: 'analyticsHub_dashboardLinks',
     CONTROL_ITEMS: 'analyticsHub_controlItems',
@@ -64,12 +64,16 @@ const DataStore = (function() {
     const currentVersion = parseInt(localStorage.getItem(KEYS.SCHEMA_VERSION) || '0', 10);
 
     if (currentVersion < 1) {
-      // Migrate existing entities: add divisionId and clientId
+      // Migrate existing entities: add divisionId and projectId
       [KEYS.REQUESTS, KEYS.IN_PROGRESS, KEYS.REPORTS].forEach(key => {
         const items = getData(key);
         items.forEach(item => {
           if (item.divisionId === undefined) item.divisionId = null;
-          if (item.clientId === undefined) item.clientId = null;
+          if (item.clientId !== undefined) {
+            item.projectId = item.clientId;
+            delete item.clientId;
+          }
+          if (item.projectId === undefined) item.projectId = null;
         });
         saveData(key, items);
       });
@@ -81,9 +85,16 @@ const DataStore = (function() {
       });
       saveData(KEYS.REPORTS, reports);
 
+      // Migrate old clients key to projects key
+      const oldClientsData = localStorage.getItem('analyticsHub_clients');
+      if (oldClientsData !== null && localStorage.getItem(KEYS.PROJECTS) === null) {
+        localStorage.setItem(KEYS.PROJECTS, oldClientsData);
+        localStorage.removeItem('analyticsHub_clients');
+      }
+
       // Initialize new collections if they don't exist
-      if (localStorage.getItem(KEYS.CLIENTS) === null) {
-        saveData(KEYS.CLIENTS, []);
+      if (localStorage.getItem(KEYS.PROJECTS) === null) {
+        saveData(KEYS.PROJECTS, []);
       }
       if (localStorage.getItem(KEYS.DOCUMENTS) === null) {
         saveData(KEYS.DOCUMENTS, []);
@@ -96,6 +107,35 @@ const DataStore = (function() {
       }
 
       localStorage.setItem(KEYS.SCHEMA_VERSION, '1');
+    }
+
+    if (currentVersion < 2) {
+      // Migrate clientId → projectId across all entity collections
+      [KEYS.REQUESTS, KEYS.IN_PROGRESS, KEYS.REPORTS, KEYS.DOCUMENTS,
+       KEYS.DASHBOARD_LINKS, KEYS.CONTROL_ITEMS].forEach(key => {
+        const items = getData(key);
+        let changed = false;
+        items.forEach(item => {
+          if (item.clientId !== undefined) {
+            item.projectId = item.clientId;
+            delete item.clientId;
+            changed = true;
+          }
+        });
+        if (changed) saveData(key, items);
+      });
+
+      // Migrate old clients localStorage key to projects
+      const oldClientsData = localStorage.getItem('analyticsHub_clients');
+      if (oldClientsData !== null) {
+        const existing = localStorage.getItem(KEYS.PROJECTS);
+        if (!existing || existing === '[]') {
+          localStorage.setItem(KEYS.PROJECTS, oldClientsData);
+        }
+        localStorage.removeItem('analyticsHub_clients');
+      }
+
+      localStorage.setItem(KEYS.SCHEMA_VERSION, '2');
     }
   }
 
@@ -112,51 +152,51 @@ const DataStore = (function() {
   }
 
   // =====================
-  // CLIENTS
+  // PROJECTS
   // =====================
 
-  function getClients() {
-    return getData(KEYS.CLIENTS);
+  function getProjects() {
+    return getData(KEYS.PROJECTS);
   }
 
-  function getClientsByDivision(divisionId) {
-    return getData(KEYS.CLIENTS)
-      .filter(c => c.divisionId === divisionId)
+  function getProjectsByDivision(divisionId) {
+    return getData(KEYS.PROJECTS)
+      .filter(p => p.divisionId === divisionId)
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  function getClientById(id) {
-    return getData(KEYS.CLIENTS).find(c => c.id === id) || null;
+  function getProjectById(id) {
+    return getData(KEYS.PROJECTS).find(p => p.id === id) || null;
   }
 
-  function addClient(clientData) {
-    const clients = getData(KEYS.CLIENTS);
-    const newClient = {
-      id: generateId('cli'),
-      name: clientData.name.trim(),
-      divisionId: clientData.divisionId,
+  function addProject(projectData) {
+    const projects = getData(KEYS.PROJECTS);
+    const newProject = {
+      id: generateId('proj'),
+      name: projectData.name.trim(),
+      divisionId: projectData.divisionId,
       isActive: true,
       dateCreated: new Date().toISOString()
     };
-    clients.push(newClient);
-    saveData(KEYS.CLIENTS, clients);
-    return newClient;
+    projects.push(newProject);
+    saveData(KEYS.PROJECTS, projects);
+    return newProject;
   }
 
-  function updateClient(id, updates) {
-    const clients = getData(KEYS.CLIENTS);
-    const client = clients.find(c => c.id === id);
-    if (client) {
-      Object.assign(client, updates);
-      saveData(KEYS.CLIENTS, clients);
-      return client;
+  function updateProject(id, updates) {
+    const projects = getData(KEYS.PROJECTS);
+    const project = projects.find(p => p.id === id);
+    if (project) {
+      Object.assign(project, updates);
+      saveData(KEYS.PROJECTS, projects);
+      return project;
     }
     return null;
   }
 
-  function deleteClient(id) {
-    const clients = getData(KEYS.CLIENTS).filter(c => c.id !== id);
-    return saveData(KEYS.CLIENTS, clients);
+  function deleteProject(id) {
+    const projects = getData(KEYS.PROJECTS).filter(p => p.id !== id);
+    return saveData(KEYS.PROJECTS, projects);
   }
 
   // =====================
@@ -176,13 +216,13 @@ const DataStore = (function() {
     return sortRequestsByUrgencyAndDate(getData(KEYS.REQUESTS));
   }
 
-  function getRequestsByClient(clientId) {
-    const requests = getData(KEYS.REQUESTS).filter(r => r.clientId === clientId);
+  function getRequestsByProject(projectId) {
+    const requests = getData(KEYS.REQUESTS).filter(r => r.projectId === projectId);
     return sortRequestsByUrgencyAndDate(requests);
   }
 
   function getUnassignedRequests() {
-    const requests = getData(KEYS.REQUESTS).filter(r => !r.clientId);
+    const requests = getData(KEYS.REQUESTS).filter(r => !r.projectId);
     return sortRequestsByUrgencyAndDate(requests);
   }
 
@@ -190,12 +230,11 @@ const DataStore = (function() {
     const requests = getData(KEYS.REQUESTS);
     const newRequest = {
       id: generateId('req'),
-      projectName: requestData.projectName.trim(),
       description: requestData.description.trim(),
       requester: requestData.requester.trim(),
       urgency: requestData.urgency,
       divisionId: requestData.divisionId || null,
-      clientId: requestData.clientId || null,
+      projectId: requestData.projectId || null,
       dateSubmitted: new Date().toISOString()
     };
     requests.push(newRequest);
@@ -232,25 +271,24 @@ const DataStore = (function() {
     return getData(KEYS.IN_PROGRESS);
   }
 
-  function getInProgressByClient(clientId) {
-    return getData(KEYS.IN_PROGRESS).filter(i => i.clientId === clientId);
+  function getInProgressByProject(projectId) {
+    return getData(KEYS.IN_PROGRESS).filter(i => i.projectId === projectId);
   }
 
   function getUnassignedInProgress() {
-    return getData(KEYS.IN_PROGRESS).filter(i => !i.clientId);
+    return getData(KEYS.IN_PROGRESS).filter(i => !i.projectId);
   }
 
   function addInProgressItem(itemData) {
     const items = getData(KEYS.IN_PROGRESS);
     const newItem = {
       id: generateId('prog'),
-      projectName: itemData.projectName.trim(),
       taskDescription: itemData.taskDescription.trim(),
       requester: itemData.requester.trim(),
       status: itemData.status || 'not-started',
       targetCompletionDate: itemData.targetCompletionDate || null,
       divisionId: itemData.divisionId || null,
-      clientId: itemData.clientId || null,
+      projectId: itemData.projectId || null,
       dateCreated: new Date().toISOString()
     };
     items.push(newItem);
@@ -297,15 +335,15 @@ const DataStore = (function() {
     return getData(KEYS.REPORTS);
   }
 
-  function getReportsByClient(clientId, activeOnly = false) {
-    let reports = getData(KEYS.REPORTS).filter(r => r.clientId === clientId);
+  function getReportsByProject(projectId, activeOnly = false) {
+    let reports = getData(KEYS.REPORTS).filter(r => r.projectId === projectId);
     if (activeOnly) reports = reports.filter(r => r.isActive);
     reports.sort((a, b) => new Date(b.datePublished) - new Date(a.datePublished));
     return reports;
   }
 
   function getUnassignedReports() {
-    return getData(KEYS.REPORTS).filter(r => !r.clientId);
+    return getData(KEYS.REPORTS).filter(r => !r.projectId);
   }
 
   function addReport(reportData) {
@@ -313,13 +351,12 @@ const DataStore = (function() {
     const newReport = {
       id: generateId('rpt'),
       title: reportData.title.trim(),
-      projectName: reportData.projectName.trim(),
       datePublished: reportData.datePublished,
       description: (reportData.description || '').trim(),
       linkUrl: (reportData.linkUrl || '').trim(),
       isActive: reportData.isActive !== false,
       divisionId: reportData.divisionId || null,
-      clientId: reportData.clientId || null,
+      projectId: reportData.projectId || null,
       category: reportData.category || 'recurring'
     };
     reports.push(newReport);
@@ -347,36 +384,12 @@ const DataStore = (function() {
     return saveData(KEYS.REPORTS, reports);
   }
 
-  function getReportsGroupedByProject(activeOnly = false, clientId = null) {
-    let reports = getData(KEYS.REPORTS);
-
-    if (clientId) {
-      reports = reports.filter(r => r.clientId === clientId);
-    }
-
-    if (activeOnly) {
-      reports = reports.filter(r => r.isActive);
-    }
-
-    reports.sort((a, b) => new Date(b.datePublished) - new Date(a.datePublished));
-
-    const grouped = {};
-    reports.forEach(report => {
-      if (!grouped[report.projectName]) {
-        grouped[report.projectName] = [];
-      }
-      grouped[report.projectName].push(report);
-    });
-
-    return grouped;
-  }
-
   // =====================
   // DOCUMENTS (Zone 1)
   // =====================
 
-  function getDocuments(clientId, category) {
-    let docs = getData(KEYS.DOCUMENTS).filter(d => d.clientId === clientId);
+  function getDocuments(projectId, category) {
+    let docs = getData(KEYS.DOCUMENTS).filter(d => d.projectId === projectId);
     if (category) docs = docs.filter(d => d.category === category);
     docs.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
     return docs;
@@ -386,7 +399,7 @@ const DataStore = (function() {
     const docs = getData(KEYS.DOCUMENTS);
     const newDoc = {
       id: generateId('doc'),
-      clientId: docData.clientId,
+      projectId: docData.projectId,
       category: docData.category,
       title: docData.title.trim(),
       description: (docData.description || '').trim(),
@@ -424,8 +437,8 @@ const DataStore = (function() {
   // DASHBOARD LINKS (Zone 2)
   // =====================
 
-  function getDashboardLinks(clientId, type) {
-    let links = getData(KEYS.DASHBOARD_LINKS).filter(l => l.clientId === clientId);
+  function getDashboardLinks(projectId, type) {
+    let links = getData(KEYS.DASHBOARD_LINKS).filter(l => l.projectId === projectId);
     if (type) links = links.filter(l => l.type === type);
     links.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
     return links;
@@ -435,7 +448,7 @@ const DataStore = (function() {
     const links = getData(KEYS.DASHBOARD_LINKS);
     const newLink = {
       id: generateId('dash'),
-      clientId: linkData.clientId,
+      projectId: linkData.projectId,
       title: linkData.title.trim(),
       url: (linkData.url || '').trim(),
       type: linkData.type || 'performance',
@@ -471,9 +484,9 @@ const DataStore = (function() {
   // CONTROL ITEMS (Zone 3)
   // =====================
 
-  function getControlItems(clientId) {
+  function getControlItems(projectId) {
     return getData(KEYS.CONTROL_ITEMS)
-      .filter(c => c.clientId === clientId)
+      .filter(c => c.projectId === projectId)
       .sort((a, b) => {
         const statusOrder = { overdue: 0, upcoming: 1, current: 2 };
         return (statusOrder[a.status] || 2) - (statusOrder[b.status] || 2);
@@ -484,7 +497,7 @@ const DataStore = (function() {
     const items = getData(KEYS.CONTROL_ITEMS);
     const newItem = {
       id: generateId('ctrl'),
-      clientId: itemData.clientId,
+      projectId: itemData.projectId,
       title: itemData.title.trim(),
       description: (itemData.description || '').trim(),
       assignee: (itemData.assignee || '').trim(),
@@ -523,19 +536,6 @@ const DataStore = (function() {
   // CROSS-CUTTING UTILITIES
   // =====================
 
-  function getUniqueProjects() {
-    const requests = getData(KEYS.REQUESTS);
-    const inProgress = getData(KEYS.IN_PROGRESS);
-    const reports = getData(KEYS.REPORTS);
-
-    const projects = new Set();
-    [...requests, ...inProgress, ...reports].forEach(item => {
-      if (item.projectName) projects.add(item.projectName);
-    });
-
-    return Array.from(projects).sort();
-  }
-
   function filterBySearchTerm(items, searchTerm, fields) {
     if (!searchTerm) return items;
     const term = searchTerm.toLowerCase();
@@ -557,17 +557,17 @@ const DataStore = (function() {
     getDivisions,
     getDivisionById,
 
-    // Clients
-    getClients,
-    getClientsByDivision,
-    getClientById,
-    addClient,
-    updateClient,
-    deleteClient,
+    // Projects
+    getProjects,
+    getProjectsByDivision,
+    getProjectById,
+    addProject,
+    updateProject,
+    deleteProject,
 
     // Requests
     getRequests,
-    getRequestsByClient,
+    getRequestsByProject,
     getUnassignedRequests,
     addRequest,
     updateRequest,
@@ -576,7 +576,7 @@ const DataStore = (function() {
 
     // In Progress
     getInProgressItems,
-    getInProgressByClient,
+    getInProgressByProject,
     getInProgressById,
     getUnassignedInProgress,
     addInProgressItem,
@@ -586,13 +586,12 @@ const DataStore = (function() {
 
     // Reports
     getReports,
-    getReportsByClient,
+    getReportsByProject,
     getReportById,
     getUnassignedReports,
     addReport,
     updateReport,
     deleteReport,
-    getReportsGroupedByProject,
 
     // Documents (Zone 1)
     getDocuments,
@@ -616,7 +615,6 @@ const DataStore = (function() {
     deleteControlItem,
 
     // Utilities
-    getUniqueProjects,
     filterBySearchTerm,
     generateId,
     getData,

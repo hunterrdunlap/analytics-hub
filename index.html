@@ -26,9 +26,9 @@
         <div class="logo-subtitle">Analytics Hub</div>
       </div>
 
-      <!-- Client search -->
+      <!-- Project search -->
       <div class="sidebar-search">
-        <input type="search" id="client-search" class="search-input sidebar-search-input" placeholder="Search clients...">
+        <input type="search" id="project-search" class="search-input sidebar-search-input" placeholder="Search projects...">
       </div>
 
       <!-- Division tree nav (dynamically rendered) -->
@@ -38,12 +38,12 @@
 
       <!-- Admin links -->
       <div class="nav-admin">
-        <a href="#" class="nav-link nav-admin-link" data-action="manage-clients">
+        <a href="#" class="nav-link nav-admin-link" data-action="manage-projects">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
-          <span>Manage Clients</span>
+          <span>Manage Projects</span>
         </a>
       </div>
 
@@ -79,7 +79,7 @@
 
       <!-- Dynamic Content Area -->
       <section class="content" id="main-content">
-        <!-- Dynamically rendered: home dashboard or client zones -->
+        <!-- Dynamically rendered: home dashboard or project zones -->
       </section>
     </main>
   </div>
@@ -92,9 +92,6 @@
       <div class="modal-footer" id="modal-footer"></div>
     </div>
   </div>
-
-  <!-- Shared datalist for project suggestions -->
-  <datalist id="project-suggestions"></datalist>
 
   <!-- Scripts -->
   <script src="js/data.js"></script>

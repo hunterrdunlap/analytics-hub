@@ -92,13 +92,13 @@
   padding-left: 12px;
 }
 
-.nav-client {
+.nav-project {
   font-size: 13px !important;
   padding: 8px 16px 8px 22px !important;
   font-weight: 400 !important;
 }
 
-.nav-client.active {
+.nav-project.active {
   background: linear-gradient(135deg, rgba(17, 137, 28, 0.15), rgba(17, 174, 207, 0.08)) !important;
   font-weight: 600 !important;
 }
@@ -214,7 +214,7 @@
   padding: 28px 20px !important;
 }
 
-.division-client-list {
+.division-project-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -223,7 +223,7 @@
   border-top: 1px solid rgba(17, 137, 28, 0.08);
 }
 
-.division-client-link {
+.division-project-link {
   font-size: 12px;
   color: var(--primary);
   text-decoration: none;
@@ -232,7 +232,7 @@
   transition: background 0.2s ease;
 }
 
-.division-client-link:hover {
+.division-project-link:hover {
   background: rgba(17, 137, 28, 0.08);
 }
 
@@ -272,51 +272,51 @@
 }
 
 /* =====================
-   CLIENT MANAGER
+   PROJECT MANAGER
    ===================== */
-.client-manager {
+.project-manager {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
-.client-manager-section {
+.project-manager-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.client-list {
+.project-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.client-list-item {
+.project-list-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 14px 20px !important;
 }
 
-.client-list-info {
+.project-list-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.client-list-name {
+.project-list-name {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-dark);
 }
 
-.client-list-date {
+.project-list-date {
   font-size: 11px;
   color: var(--text-muted);
 }
 
-.client-list-actions {
+.project-list-actions {
   display: flex;
   gap: 8px;
   align-items: center;
