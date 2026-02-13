@@ -203,6 +203,17 @@ const DataStore = (function() {
     return newRequest;
   }
 
+  function updateRequest(id, updates) {
+    const requests = getData(KEYS.REQUESTS);
+    const req = requests.find(r => r.id === id);
+    if (req) {
+      Object.assign(req, updates);
+      saveData(KEYS.REQUESTS, requests);
+      return req;
+    }
+    return null;
+  }
+
   function deleteRequest(id) {
     const requests = getData(KEYS.REQUESTS).filter(r => r.id !== id);
     return saveData(KEYS.REQUESTS, requests);
@@ -245,6 +256,21 @@ const DataStore = (function() {
     items.push(newItem);
     saveData(KEYS.IN_PROGRESS, items);
     return newItem;
+  }
+
+  function getInProgressById(id) {
+    return getData(KEYS.IN_PROGRESS).find(i => i.id === id) || null;
+  }
+
+  function updateInProgressItem(id, updates) {
+    const items = getData(KEYS.IN_PROGRESS);
+    const item = items.find(i => i.id === id);
+    if (item) {
+      Object.assign(item, updates);
+      saveData(KEYS.IN_PROGRESS, items);
+      return item;
+    }
+    return null;
   }
 
   function updateInProgressStatus(id, newStatus) {
@@ -299,6 +325,21 @@ const DataStore = (function() {
     reports.push(newReport);
     saveData(KEYS.REPORTS, reports);
     return newReport;
+  }
+
+  function updateReport(id, updates) {
+    const reports = getData(KEYS.REPORTS);
+    const report = reports.find(r => r.id === id);
+    if (report) {
+      Object.assign(report, updates);
+      saveData(KEYS.REPORTS, reports);
+      return report;
+    }
+    return null;
+  }
+
+  function getReportById(id) {
+    return getData(KEYS.REPORTS).find(r => r.id === id) || null;
   }
 
   function deleteReport(id) {
@@ -359,9 +400,24 @@ const DataStore = (function() {
     return newDoc;
   }
 
+  function updateDocument(id, updates) {
+    const docs = getData(KEYS.DOCUMENTS);
+    const doc = docs.find(d => d.id === id);
+    if (doc) {
+      Object.assign(doc, updates);
+      saveData(KEYS.DOCUMENTS, docs);
+      return doc;
+    }
+    return null;
+  }
+
   function deleteDocument(id) {
     const docs = getData(KEYS.DOCUMENTS).filter(d => d.id !== id);
     return saveData(KEYS.DOCUMENTS, docs);
+  }
+
+  function getDocumentById(id) {
+    return getData(KEYS.DOCUMENTS).find(d => d.id === id) || null;
   }
 
   // =====================
@@ -391,9 +447,24 @@ const DataStore = (function() {
     return newLink;
   }
 
+  function updateDashboardLink(id, updates) {
+    const links = getData(KEYS.DASHBOARD_LINKS);
+    const link = links.find(l => l.id === id);
+    if (link) {
+      Object.assign(link, updates);
+      saveData(KEYS.DASHBOARD_LINKS, links);
+      return link;
+    }
+    return null;
+  }
+
   function deleteDashboardLink(id) {
     const links = getData(KEYS.DASHBOARD_LINKS).filter(l => l.id !== id);
     return saveData(KEYS.DASHBOARD_LINKS, links);
+  }
+
+  function getDashboardLinkById(id) {
+    return getData(KEYS.DASHBOARD_LINKS).find(l => l.id === id) || null;
   }
 
   // =====================
@@ -426,6 +497,10 @@ const DataStore = (function() {
     items.push(newItem);
     saveData(KEYS.CONTROL_ITEMS, items);
     return newItem;
+  }
+
+  function getControlItemById(id) {
+    return getData(KEYS.CONTROL_ITEMS).find(i => i.id === id) || null;
   }
 
   function updateControlItem(id, updates) {
@@ -495,37 +570,47 @@ const DataStore = (function() {
     getRequestsByClient,
     getUnassignedRequests,
     addRequest,
+    updateRequest,
     deleteRequest,
     getRequestById,
 
     // In Progress
     getInProgressItems,
     getInProgressByClient,
+    getInProgressById,
     getUnassignedInProgress,
     addInProgressItem,
+    updateInProgressItem,
     updateInProgressStatus,
     deleteInProgressItem,
 
     // Reports
     getReports,
     getReportsByClient,
+    getReportById,
     getUnassignedReports,
     addReport,
+    updateReport,
     deleteReport,
     getReportsGroupedByProject,
 
     // Documents (Zone 1)
     getDocuments,
+    getDocumentById,
     addDocument,
+    updateDocument,
     deleteDocument,
 
     // Dashboard Links (Zone 2)
     getDashboardLinks,
+    getDashboardLinkById,
     addDashboardLink,
+    updateDashboardLink,
     deleteDashboardLink,
 
     // Control Items (Zone 3)
     getControlItems,
+    getControlItemById,
     addControlItem,
     updateControlItem,
     deleteControlItem,

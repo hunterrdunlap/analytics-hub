@@ -20,8 +20,10 @@ const App = (function() {
   function init() {
     DataStore.runMigration();
     cacheElements();
+    cacheModalElements();
     AppRouter.init(render);
     bindEvents();
+    bindModalEvents();
     render();
   }
 
@@ -457,11 +459,306 @@ const App = (function() {
   }
 
   // =====================
+  // DETAIL MODAL
+  // =====================
+
+  let modalState = { entityType: null, entityId: null, clientId: null };
+
+  function cacheModalElements() {
+    elements.modalOverlay = document.getElementById('modal-overlay');
+    elements.modal = document.getElementById('modal');
+    elements.modalHeader = document.getElementById('modal-header');
+    elements.modalBody = document.getElementById('modal-body');
+    elements.modalFooter = document.getElementById('modal-footer');
+  }
+
+  function bindModalEvents() {
+    // Close on overlay click
+    elements.modalOverlay.addEventListener('click', (e) => {
+      if (e.target === elements.modalOverlay) closeModal();
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !elements.modalOverlay.hidden) {
+        closeModal();
+      }
+    });
+  }
+
+  function openModal(entityType, entityId, clientId) {
+    const entity = getEntityById(entityType, entityId);
+    if (!entity) return;
+
+    modalState = { entityType, entityId, clientId };
+    cacheModalElements();
+
+    const config = getModalConfig(entityType);
+
+    elements.modalHeader.innerHTML = `
+      <h2 class="modal-title">${escapeHtml(config.title)}</h2>
+      <button class="modal-close-btn" id="modal-close-btn" aria-label="Close">&times;</button>
+    `;
+
+    elements.modalBody.innerHTML = renderModalForm(entityType, entity, config);
+
+    elements.modalFooter.innerHTML = `
+      <div class="modal-footer-left">
+        <button class="btn-danger-text" id="modal-delete-btn">Delete</button>
+      </div>
+      <div class="modal-footer-right">
+        <button class="btn-secondary" id="modal-cancel-btn">Cancel</button>
+        <button class="btn-primary" id="modal-save-btn">Save Changes</button>
+      </div>
+    `;
+
+    elements.modalOverlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+
+    // Bind modal buttons
+    document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+    document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
+    document.getElementById('modal-save-btn').addEventListener('click', saveModal);
+    document.getElementById('modal-delete-btn').addEventListener('click', deleteFromModal);
+
+    // Focus first input
+    const firstInput = elements.modalBody.querySelector('input, textarea, select');
+    if (firstInput) setTimeout(() => firstInput.focus(), 50);
+  }
+
+  function closeModal() {
+    if (elements.modalOverlay) {
+      elements.modalOverlay.hidden = true;
+      document.body.style.overflow = '';
+    }
+    modalState = { entityType: null, entityId: null, clientId: null };
+  }
+
+  function saveModal() {
+    const { entityType, entityId, clientId } = modalState;
+    const updates = readModalForm(entityType);
+    if (!updates) return;
+
+    const updateFn = {
+      document: DataStore.updateDocument,
+      report: DataStore.updateReport,
+      dashboard: DataStore.updateDashboardLink,
+      control: DataStore.updateControlItem,
+      request: DataStore.updateRequest,
+      progress: DataStore.updateInProgressItem
+    }[entityType];
+
+    if (updateFn) {
+      updateFn(entityId, updates);
+    }
+
+    closeModal();
+    render();
+  }
+
+  function deleteFromModal() {
+    const { entityType, entityId } = modalState;
+    const labels = {
+      document: 'document', report: 'report', dashboard: 'dashboard link',
+      control: 'control item', request: 'request', progress: 'in-progress item'
+    };
+    if (!confirm(`Delete this ${labels[entityType] || 'item'}?`)) return;
+
+    const deleteFn = {
+      document: DataStore.deleteDocument,
+      report: DataStore.deleteReport,
+      dashboard: DataStore.deleteDashboardLink,
+      control: DataStore.deleteControlItem,
+      request: DataStore.deleteRequest,
+      progress: DataStore.deleteInProgressItem
+    }[entityType];
+
+    if (deleteFn) {
+      deleteFn(entityId);
+    }
+
+    closeModal();
+    render();
+  }
+
+  function getEntityById(entityType, entityId) {
+    const getterFn = {
+      document: DataStore.getDocumentById,
+      report: DataStore.getReportById,
+      dashboard: DataStore.getDashboardLinkById,
+      control: DataStore.getControlItemById,
+      request: DataStore.getRequestById,
+      progress: DataStore.getInProgressById
+    }[entityType];
+    return getterFn ? getterFn(entityId) : null;
+  }
+
+  function getModalConfig(entityType) {
+    const configs = {
+      document: {
+        title: 'Document Details',
+        fields: [
+          { key: 'title', label: 'Title', type: 'text', required: true },
+          { key: 'description', label: 'Description', type: 'textarea' },
+          { key: 'linkUrl', label: 'Link URL', type: 'url' },
+          { key: 'category', label: 'Category', type: 'select', options: [
+            { value: 'legal', label: 'Legal Document' },
+            { value: 'pricing', label: 'Original Pricing Model' },
+            { value: 'recurring', label: 'Recurring Report' }
+          ]},
+          { key: 'source', label: 'Source', type: 'select', options: [
+            { value: 'manual', label: 'Manual Upload' },
+            { value: 'client-email', label: 'Client Email' },
+            { value: 'nelnet-created', label: 'Nelnet Created' }
+          ]}
+        ]
+      },
+      report: {
+        title: 'Report Details',
+        fields: [
+          { key: 'title', label: 'Report Title', type: 'text', required: true },
+          { key: 'projectName', label: 'Project Name', type: 'text', required: true },
+          { key: 'datePublished', label: 'Date Published', type: 'date' },
+          { key: 'description', label: 'Description', type: 'textarea' },
+          { key: 'linkUrl', label: 'Link URL', type: 'url' },
+          { key: 'source', label: 'Source', type: 'select', options: [
+            { value: 'nelnet-created', label: 'Nelnet Created' },
+            { value: 'client-email', label: 'Client Email' },
+            { value: 'manual', label: 'Manual' }
+          ]},
+          { key: 'isActive', label: 'Active project', type: 'checkbox' }
+        ]
+      },
+      dashboard: {
+        title: 'Dashboard Link Details',
+        fields: [
+          { key: 'title', label: 'Title', type: 'text', required: true },
+          { key: 'url', label: 'Dashboard URL', type: 'url' },
+          { key: 'type', label: 'Type', type: 'select', options: [
+            { value: 'performance', label: 'Performance Dashboard' },
+            { value: 'valuation', label: 'Valuation Support' },
+            { value: 'impairment', label: 'Impairment Support' }
+          ]},
+          { key: 'description', label: 'Description', type: 'textarea' }
+        ]
+      },
+      control: {
+        title: 'Control Item Details',
+        fields: [
+          { key: 'title', label: 'Control Title', type: 'text', required: true },
+          { key: 'description', label: 'Description', type: 'textarea' },
+          { key: 'assignee', label: 'Assignee', type: 'text' },
+          { key: 'frequency', label: 'Frequency', type: 'select', options: [
+            { value: 'weekly', label: 'Weekly' },
+            { value: 'monthly', label: 'Monthly' },
+            { value: 'quarterly', label: 'Quarterly' },
+            { value: 'annually', label: 'Annually' },
+            { value: 'ad-hoc', label: 'Ad-Hoc' }
+          ]},
+          { key: 'nextDue', label: 'Next Due Date', type: 'date' },
+          { key: 'status', label: 'Status', type: 'select', options: [
+            { value: 'current', label: 'Current' },
+            { value: 'upcoming', label: 'Upcoming' },
+            { value: 'overdue', label: 'Overdue' }
+          ]}
+        ]
+      },
+      request: {
+        title: 'Request Details',
+        fields: [
+          { key: 'projectName', label: 'Project Name', type: 'text', required: true },
+          { key: 'description', label: 'Description', type: 'textarea', required: true },
+          { key: 'requester', label: 'Requester', type: 'text', required: true },
+          { key: 'urgency', label: 'Urgency', type: 'select', options: [
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'high', label: 'High' }
+          ]}
+        ]
+      },
+      progress: {
+        title: 'In-Progress Item Details',
+        fields: [
+          { key: 'projectName', label: 'Project Name', type: 'text', required: true },
+          { key: 'taskDescription', label: 'Task Description', type: 'textarea', required: true },
+          { key: 'requester', label: 'Requester', type: 'text', required: true },
+          { key: 'status', label: 'Status', type: 'select', options: [
+            { value: 'not-started', label: 'Not Started' },
+            { value: 'in-progress', label: 'In Progress' },
+            { value: 'in-review', label: 'In Review' }
+          ]},
+          { key: 'targetCompletionDate', label: 'Target Completion Date', type: 'date' }
+        ]
+      }
+    };
+    return configs[entityType] || { title: 'Details', fields: [] };
+  }
+
+  function renderModalForm(entityType, entity, config) {
+    return config.fields.map(field => {
+      const value = entity[field.key] != null ? entity[field.key] : '';
+      const id = `modal-field-${field.key}`;
+      const req = field.required ? 'required' : '';
+
+      if (field.type === 'textarea') {
+        return `
+          <div class="form-group">
+            <label for="${id}">${escapeHtml(field.label)}</label>
+            <textarea id="${id}" name="${field.key}" rows="3" ${req}>${escapeHtml(String(value))}</textarea>
+          </div>`;
+      }
+
+      if (field.type === 'select') {
+        const options = field.options.map(opt =>
+          `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${escapeHtml(opt.label)}</option>`
+        ).join('');
+        return `
+          <div class="form-group">
+            <label for="${id}">${escapeHtml(field.label)}</label>
+            <select id="${id}" name="${field.key}" ${req}>${options}</select>
+          </div>`;
+      }
+
+      if (field.type === 'checkbox') {
+        return `
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="${id}" name="${field.key}" ${value ? 'checked' : ''}>
+              <span>${escapeHtml(field.label)}</span>
+            </label>
+          </div>`;
+      }
+
+      return `
+        <div class="form-group">
+          <label for="${id}">${escapeHtml(field.label)}</label>
+          <input type="${field.type}" id="${id}" name="${field.key}" value="${escapeHtml(String(value))}" ${req}>
+        </div>`;
+    }).join('');
+  }
+
+  function readModalForm(entityType) {
+    const config = getModalConfig(entityType);
+    const updates = {};
+    config.fields.forEach(field => {
+      const el = document.getElementById(`modal-field-${field.key}`);
+      if (!el) return;
+      if (field.type === 'checkbox') {
+        updates[field.key] = el.checked;
+      } else {
+        updates[field.key] = el.value;
+      }
+    });
+    return updates;
+  }
+
+  // =====================
   // PUBLIC API
   // =====================
   return {
     init,
-    render
+    render,
+    openModal
   };
 })();
 

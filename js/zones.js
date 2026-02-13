@@ -242,7 +242,7 @@ const ZoneRenderer = (function() {
     const sourceLabel = sourceLabels[doc.source] || doc.source;
 
     return `
-      <article class="report-card kpi-card" data-id="${doc.id}" data-type="document">
+      <article class="report-card kpi-card" data-id="${doc.id}" data-type="document" data-entity-type="document" data-entity-id="${doc.id}">
         <div class="report-card-header">
           <span class="report-title">${escapeHtml(doc.title)}</span>
         </div>
@@ -286,7 +286,7 @@ const ZoneRenderer = (function() {
     const descriptionTruncated = truncateText(report.description, 100);
 
     return `
-      <article class="report-card kpi-card" data-id="${report.id}" data-type="report">
+      <article class="report-card kpi-card" data-id="${report.id}" data-type="report" data-entity-type="report" data-entity-id="${report.id}">
         <div class="report-card-header">
           <span class="report-title">${escapeHtml(report.title)}</span>
         </div>
@@ -406,24 +406,35 @@ const ZoneRenderer = (function() {
       }, 200));
     }
 
-    // Delete actions (event delegation)
+    // Delete actions and card click (event delegation)
     container.addEventListener('click', (e) => {
+      // Handle action buttons first
       const btn = e.target.closest('[data-action]');
-      if (!btn) return;
+      if (btn) {
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
 
-      const action = btn.dataset.action;
-      const id = btn.dataset.id;
+        if (action === 'delete-document') {
+          if (confirm('Delete this document?')) {
+            DataStore.deleteDocument(id);
+            renderZone1(container, clientId);
+          }
+        } else if (action === 'delete-report') {
+          if (confirm('Delete this report?')) {
+            DataStore.deleteReport(id);
+            renderZone1(container, clientId);
+          }
+        }
+        return;
+      }
 
-      if (action === 'delete-document') {
-        if (confirm('Delete this document?')) {
-          DataStore.deleteDocument(id);
-          renderZone1(container, clientId);
-        }
-      } else if (action === 'delete-report') {
-        if (confirm('Delete this report?')) {
-          DataStore.deleteReport(id);
-          renderZone1(container, clientId);
-        }
+      // Skip links and interactive elements
+      if (e.target.closest('a') || e.target.closest('select') || e.target.closest('button')) return;
+
+      // Open modal on card click
+      const card = e.target.closest('[data-entity-type]');
+      if (card) {
+        App.openModal(card.dataset.entityType, card.dataset.entityId, clientId);
       }
     });
   }
@@ -502,7 +513,7 @@ const ZoneRenderer = (function() {
     const typeLabel = typeLabels[link.type] || link.type;
 
     return `
-      <article class="report-card kpi-card dashboard-card" data-id="${link.id}">
+      <article class="report-card kpi-card dashboard-card" data-id="${link.id}" data-entity-type="dashboard" data-entity-id="${link.id}">
         <div class="card-header">
           <span class="project-name">${escapeHtml(link.title)}</span>
           <span class="type-badge type-${link.type}">${escapeHtml(typeLabel)}</span>
@@ -569,13 +580,24 @@ const ZoneRenderer = (function() {
       });
     }
 
-    // Delete actions
+    // Delete actions and card click
     container.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action="delete-dashboard"]');
-      if (!btn) return;
-      if (confirm('Delete this dashboard link?')) {
-        DataStore.deleteDashboardLink(btn.dataset.id);
-        renderZone2(container, clientId);
+      if (btn) {
+        if (confirm('Delete this dashboard link?')) {
+          DataStore.deleteDashboardLink(btn.dataset.id);
+          renderZone2(container, clientId);
+        }
+        return;
+      }
+
+      // Skip links and interactive elements
+      if (e.target.closest('a') || e.target.closest('select') || e.target.closest('button')) return;
+
+      // Open modal on card click
+      const card = e.target.closest('[data-entity-type]');
+      if (card) {
+        App.openModal(card.dataset.entityType, card.dataset.entityId, clientId);
       }
     });
   }
@@ -763,7 +785,7 @@ const ZoneRenderer = (function() {
     const statusLabels = { current: 'Current', overdue: 'Overdue', upcoming: 'Upcoming' };
 
     return `
-      <article class="control-card chart-card" data-id="${item.id}">
+      <article class="control-card chart-card" data-id="${item.id}" data-entity-type="control" data-entity-id="${item.id}">
         <div class="card-header">
           <span class="project-name">${escapeHtml(item.title)}</span>
           <div class="control-badges">
@@ -796,7 +818,7 @@ const ZoneRenderer = (function() {
     const descriptionTruncated = truncateText(request.description, 120);
 
     return `
-      <article class="request-card kpi-card" data-id="${request.id}" data-urgency="${request.urgency}">
+      <article class="request-card kpi-card" data-id="${request.id}" data-urgency="${request.urgency}" data-entity-type="request" data-entity-id="${request.id}">
         <div class="card-header">
           <span class="project-name">${escapeHtml(request.projectName)}</span>
           <span class="urgency-badge urgency-${request.urgency}">${capitalize(request.urgency)}</span>
@@ -826,7 +848,7 @@ const ZoneRenderer = (function() {
       : 'No target';
 
     return `
-      <article class="progress-card chart-card" data-id="${item.id}">
+      <article class="progress-card chart-card" data-id="${item.id}" data-entity-type="progress" data-entity-id="${item.id}">
         <div class="card-header">
           <span class="project-name">${escapeHtml(item.projectName)}</span>
           <span class="target-date">${icons.clock} ${targetDateFormatted}</span>
@@ -953,60 +975,70 @@ const ZoneRenderer = (function() {
       DataStore.updateInProgressStatus(e.target.dataset.id, e.target.value);
     });
 
-    // Action buttons (event delegation)
+    // Action buttons and card click (event delegation)
     container.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action]');
-      if (!btn) return;
+      if (btn) {
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
 
-      const action = btn.dataset.action;
-      const id = btn.dataset.id;
-
-      switch (action) {
-        case 'delete-control':
-          if (confirm('Delete this control item?')) {
-            DataStore.deleteControlItem(id);
-            renderZone3(container, clientId);
-          }
-          break;
-        case 'complete-control':
-          DataStore.updateControlItem(id, {
-            lastCompleted: new Date().toISOString(),
-            status: 'current'
-          });
-          renderZone3(container, clientId);
-          break;
-        case 'delete-request':
-          if (confirm('Delete this request?')) {
-            DataStore.deleteRequest(id);
-            renderZone3(container, clientId);
-          }
-          break;
-        case 'promote':
-          const request = DataStore.getRequestById(id);
-          if (request) {
-            DataStore.addInProgressItem({
-              projectName: request.projectName,
-              taskDescription: request.description,
-              requester: request.requester,
-              status: 'not-started',
-              targetCompletionDate: null,
-              clientId: clientId,
-              divisionId: request.divisionId
+        switch (action) {
+          case 'delete-control':
+            if (confirm('Delete this control item?')) {
+              DataStore.deleteControlItem(id);
+              renderZone3(container, clientId);
+            }
+            break;
+          case 'complete-control':
+            DataStore.updateControlItem(id, {
+              lastCompleted: new Date().toISOString(),
+              status: 'current'
             });
-            DataStore.deleteRequest(id);
             renderZone3(container, clientId);
-          }
-          break;
-        case 'delete-progress':
-          if (confirm('Delete this item?')) {
+            break;
+          case 'delete-request':
+            if (confirm('Delete this request?')) {
+              DataStore.deleteRequest(id);
+              renderZone3(container, clientId);
+            }
+            break;
+          case 'promote':
+            const request = DataStore.getRequestById(id);
+            if (request) {
+              DataStore.addInProgressItem({
+                projectName: request.projectName,
+                taskDescription: request.description,
+                requester: request.requester,
+                status: 'not-started',
+                targetCompletionDate: null,
+                clientId: clientId,
+                divisionId: request.divisionId
+              });
+              DataStore.deleteRequest(id);
+              renderZone3(container, clientId);
+            }
+            break;
+          case 'delete-progress':
+            if (confirm('Delete this item?')) {
+              DataStore.deleteInProgressItem(id);
+              renderZone3(container, clientId);
+            }
+            break;
+          case 'complete-progress':
             DataStore.deleteInProgressItem(id);
             renderZone3(container, clientId);
-          }
-          break;
-        case 'complete-progress':
-          DataStore.deleteInProgressItem(id);
-          renderZone3(container, clientId);
-          break;
+            break;
+        }
+        return;
+      }
+
+      // Skip links, selects, and buttons
+      if (e.target.closest('a') || e.target.closest('select') || e.target.closest('button')) return;
+
+      // Open modal on card click
+      const card = e.target.closest('[data-entity-type]');
+      if (card) {
+        App.openModal(card.dataset.entityType, card.dataset.entityId, clientId);
       }
     });
   }
