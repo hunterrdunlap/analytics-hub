@@ -81,8 +81,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
 # All functions share the same zip since they use relative requires to ../shared/
 data "archive_file" "lambda_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../../lambda"
-  output_path = "${path.module}/../../deployment.zip"
+  source_dir  = "${path.module}/../../../lambda"
+  output_path = "${path.module}/../../../lambda/deployment.zip"
   excludes    = ["package.json", "package-lock.json"]
 }
 
