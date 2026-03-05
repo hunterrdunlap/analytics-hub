@@ -18,7 +18,6 @@ const App = (function() {
   // =====================
 
   function init() {
-    DataStore.runMigration();
     cacheElements();
     cacheModalElements();
     AppRouter.init(render);
@@ -94,23 +93,22 @@ const App = (function() {
   // MASTER RENDER
   // =====================
 
-  function render() {
-    renderSidebar();
-    renderMainContent();
+  async function render() {
+    await Promise.all([renderSidebar(), renderMainContent()]);
   }
 
   // =====================
   // SIDEBAR RENDERING
   // =====================
 
-  function renderSidebar() {
-    const divisions = DataStore.getDivisions();
+  async function renderSidebar() {
+    const divisions = await DataStore.getDivisions();
     const state = AppRouter.getState();
 
     let html = '<div class="nav-list">';
 
-    divisions.forEach(div => {
-      let projects = DataStore.getProjectsByDivision(div.id);
+    for (const div of divisions) {
+      let projects = await DataStore.getProjectsByDivision(div.id);
 
       // Filter projects by search term
       if (projectSearchTerm) {
@@ -118,7 +116,7 @@ const App = (function() {
       }
 
       const isExpanded = state.expandedDivisions.includes(div.id);
-      const allProjects = DataStore.getProjectsByDivision(div.id);
+      const allProjects = await DataStore.getProjectsByDivision(div.id);
 
       html += `
         <div class="nav-group ${isExpanded ? 'expanded' : ''}">
@@ -139,7 +137,7 @@ const App = (function() {
           </div>
         </div>
       `;
-    });
+    }
 
     html += '</div>';
     elements.divisionTree.innerHTML = html;
@@ -149,21 +147,21 @@ const App = (function() {
   // MAIN CONTENT RENDERING
   // =====================
 
-  function renderMainContent() {
+  async function renderMainContent() {
     const state = AppRouter.getState();
 
     switch (state.currentView) {
       case 'home':
-        renderHomeDashboard();
+        await renderHomeDashboard();
         break;
       case 'project':
-        renderProjectView(state.selectedProjectId, state.activeZone);
+        await renderProjectView(state.selectedProjectId, state.activeZone);
         break;
       case 'manage-projects':
-        renderProjectManager();
+        await renderProjectManager();
         break;
       default:
-        renderHomeDashboard();
+        await renderHomeDashboard();
     }
   }
 
@@ -171,19 +169,22 @@ const App = (function() {
   // HOME DASHBOARD
   // =====================
 
-  function renderHomeDashboard() {
+  async function renderHomeDashboard() {
     elements.pageTitle.textContent = 'Analytics Hub';
     elements.pageSubtitle.textContent = '';
 
-    const divisions = DataStore.getDivisions();
-    const unassignedRequests = DataStore.getUnassignedRequests();
-    const unassignedProgress = DataStore.getUnassignedInProgress();
-    const unassignedReports = DataStore.getUnassignedReports();
+    const divisions = await DataStore.getDivisions();
+    const [unassignedRequests, unassignedProgress, unassignedReports] = await Promise.all([
+      DataStore.getUnassignedRequests(),
+      DataStore.getUnassignedInProgress(),
+      DataStore.getUnassignedReports()
+    ]);
     const totalUnassigned = unassignedRequests.length + unassignedProgress.length + unassignedReports.length;
 
-    let divisionCardsHtml = divisions.map(div => {
-      const projects = DataStore.getProjectsByDivision(div.id);
-      return `
+    const divisionCards = [];
+    for (const div of divisions) {
+      const projects = await DataStore.getProjectsByDivision(div.id);
+      divisionCards.push(`
         <div class="kpi-card division-summary-card" data-division-id="${div.id}">
           <div class="kpi-value">${projects.length}</div>
           <div class="kpi-label">${escapeHtml(div.name)}</div>
@@ -197,8 +198,9 @@ const App = (function() {
             </div>
           ` : ''}
         </div>
-      `;
-    }).join('');
+      `);
+    }
+    const divisionCardsHtml = divisionCards.join('');
 
     let unassignedHtml = '';
     if (totalUnassigned > 0) {
@@ -258,14 +260,14 @@ const App = (function() {
   // PROJECT VIEW (ZONE TABS)
   // =====================
 
-  function renderProjectView(projectId, activeZone) {
-    const project = DataStore.getProjectById(projectId);
+  async function renderProjectView(projectId, activeZone) {
+    const project = await DataStore.getProjectById(projectId);
     if (!project) {
       AppRouter.goHome();
       return;
     }
 
-    const division = DataStore.getDivisionById(project.divisionId);
+    const division = await DataStore.getDivisionById(project.divisionId);
 
     elements.pageTitle.textContent = project.name;
     elements.pageSubtitle.textContent = division ? division.name : '';
@@ -296,13 +298,13 @@ const App = (function() {
     const zoneContent = document.getElementById('zone-content');
     switch (activeZone) {
       case 1:
-        ZoneRenderer.renderZone1(zoneContent, projectId);
+        await ZoneRenderer.renderZone1(zoneContent, projectId);
         break;
       case 2:
-        ZoneRenderer.renderZone2(zoneContent, projectId);
+        await ZoneRenderer.renderZone2(zoneContent, projectId);
         break;
       case 3:
-        ZoneRenderer.renderZone3(zoneContent, projectId);
+        await ZoneRenderer.renderZone3(zoneContent, projectId);
         break;
     }
   }
@@ -311,11 +313,11 @@ const App = (function() {
   // PROJECT MANAGER
   // =====================
 
-  function renderProjectManager() {
+  async function renderProjectManager() {
     elements.pageTitle.textContent = 'Manage Projects';
     elements.pageSubtitle.textContent = '';
 
-    const divisions = DataStore.getDivisions();
+    const divisions = await DataStore.getDivisions();
 
     let html = `<div class="project-manager">`;
 
@@ -343,8 +345,8 @@ const App = (function() {
     `;
 
     // List projects grouped by division
-    divisions.forEach(div => {
-      const projects = DataStore.getProjectsByDivision(div.id);
+    for (const div of divisions) {
+      const projects = await DataStore.getProjectsByDivision(div.id);
       html += `
         <div class="project-manager-section">
           <h3 class="report-group-title">${escapeHtml(div.name)}</h3>
@@ -376,7 +378,7 @@ const App = (function() {
           `}
         </div>
       `;
-    });
+    }
 
     html += `</div>`;
     elements.mainContent.innerHTML = html;
@@ -384,18 +386,18 @@ const App = (function() {
     // Bind add project form
     const addForm = document.getElementById('add-project-form');
     if (addForm) {
-      addForm.addEventListener('submit', (e) => {
+      addForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('new-project-name').value;
         const divisionId = document.getElementById('new-project-division').value;
-        DataStore.addProject({ name, divisionId });
-        renderProjectManager();
-        renderSidebar();
+        await DataStore.addProject({ name, divisionId });
+        await renderProjectManager();
+        await renderSidebar();
       });
     }
 
     // Bind project actions
-    elements.mainContent.addEventListener('click', (e) => {
+    elements.mainContent.addEventListener('click', async (e) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
 
@@ -404,11 +406,11 @@ const App = (function() {
         AppRouter.selectProject(btn.dataset.projectId);
       } else if (btn.dataset.action === 'delete-project') {
         const projectId = btn.dataset.projectId;
-        const project = DataStore.getProjectById(projectId);
+        const project = await DataStore.getProjectById(projectId);
         if (project && confirm(`Delete project "${project.name}"? This won't delete associated items, but they will become unassigned.`)) {
-          DataStore.deleteProject(projectId);
-          renderProjectManager();
-          renderSidebar();
+          await DataStore.deleteProject(projectId);
+          await renderProjectManager();
+          await renderSidebar();
         }
       }
     });
@@ -475,8 +477,8 @@ const App = (function() {
     });
   }
 
-  function openModal(entityType, entityId, projectId) {
-    const entity = getEntityById(entityType, entityId);
+  async function openModal(entityType, entityId, projectId) {
+    const entity = await getEntityById(entityType, entityId);
     if (!entity) return;
 
     modalState = { entityType, entityId, projectId };
@@ -523,7 +525,7 @@ const App = (function() {
     modalState = { entityType: null, entityId: null, projectId: null };
   }
 
-  function saveModal() {
+  async function saveModal() {
     const { entityType, entityId } = modalState;
     const updates = readModalForm(entityType);
     if (!updates) return;
@@ -538,14 +540,14 @@ const App = (function() {
     }[entityType];
 
     if (updateFn) {
-      updateFn(entityId, updates);
+      await updateFn(entityId, updates);
     }
 
     closeModal();
-    render();
+    await render();
   }
 
-  function deleteFromModal() {
+  async function deleteFromModal() {
     const { entityType, entityId } = modalState;
     const labels = {
       document: 'document', report: 'report', dashboard: 'dashboard link',
@@ -563,14 +565,14 @@ const App = (function() {
     }[entityType];
 
     if (deleteFn) {
-      deleteFn(entityId);
+      await deleteFn(entityId);
     }
 
     closeModal();
-    render();
+    await render();
   }
 
-  function getEntityById(entityType, entityId) {
+  async function getEntityById(entityType, entityId) {
     const getterFn = {
       document: DataStore.getDocumentById,
       report: DataStore.getReportById,
@@ -579,7 +581,7 @@ const App = (function() {
       request: DataStore.getRequestById,
       progress: DataStore.getInProgressById
     }[entityType];
-    return getterFn ? getterFn(entityId) : null;
+    return getterFn ? await getterFn(entityId) : null;
   }
 
   function getModalConfig(entityType) {

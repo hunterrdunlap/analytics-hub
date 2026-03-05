@@ -35,8 +35,8 @@ const AppRouter = (function() {
     triggerRender();
   }
 
-  function selectProject(projectId) {
-    const project = DataStore.getProjectById(projectId);
+  async function selectProject(projectId) {
+    const project = await DataStore.getProjectById(projectId);
     if (!project) return;
 
     state.currentView = 'project';

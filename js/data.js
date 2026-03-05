@@ -1,6 +1,6 @@
 /**
  * Analytics Hub - Data Layer
- * Handles localStorage operations for all entities:
+ * Async API-backed data operations for all entities:
  * divisions, projects, requests, in-progress items, reports,
  * documents, dashboard links, and control items.
  */
@@ -8,528 +8,223 @@
 const DataStore = (function() {
   'use strict';
 
-  const SCHEMA_VERSION = 2;
-
-  const KEYS = {
-    REQUESTS: 'analyticsHub_requests',
-    IN_PROGRESS: 'analyticsHub_inProgress',
-    REPORTS: 'analyticsHub_reports',
-    PROJECTS: 'analyticsHub_projects',
-    DOCUMENTS: 'analyticsHub_documents',
-    DASHBOARD_LINKS: 'analyticsHub_dashboardLinks',
-    CONTROL_ITEMS: 'analyticsHub_controlItems',
-    SCHEMA_VERSION: 'analyticsHub_schemaVersion'
-  };
-
-  // Hardcoded divisions (read-only)
-  const DIVISIONS = [
-    { id: 'div-reinsurance', name: 'Reinsurance', sortOrder: 0 },
-    { id: 'div-real-estate', name: 'Real Estate', sortOrder: 1 },
-    { id: 'div-structured-finance', name: 'Structured Finance', sortOrder: 2 }
-  ];
-
-  // =====================
-  // UTILITIES
-  // =====================
-
-  function generateId(prefix = 'id') {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  function getData(key) {
-    try {
-      const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : [];
-    } catch (e) {
-      console.error(`Error reading ${key}:`, e);
-      return [];
-    }
-  }
-
-  function saveData(key, data) {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-      return true;
-    } catch (e) {
-      console.error(`Error saving ${key}:`, e);
-      return false;
-    }
-  }
-
-  // =====================
-  // MIGRATION
-  // =====================
-
-  function runMigration() {
-    const currentVersion = parseInt(localStorage.getItem(KEYS.SCHEMA_VERSION) || '0', 10);
-
-    if (currentVersion < 1) {
-      // Migrate existing entities: add divisionId and projectId
-      [KEYS.REQUESTS, KEYS.IN_PROGRESS, KEYS.REPORTS].forEach(key => {
-        const items = getData(key);
-        items.forEach(item => {
-          if (item.divisionId === undefined) item.divisionId = null;
-          if (item.clientId !== undefined) {
-            item.projectId = item.clientId;
-            delete item.clientId;
-          }
-          if (item.projectId === undefined) item.projectId = null;
-        });
-        saveData(key, items);
-      });
-
-      // Add category to existing reports
-      const reports = getData(KEYS.REPORTS);
-      reports.forEach(report => {
-        if (report.category === undefined) report.category = 'recurring';
-      });
-      saveData(KEYS.REPORTS, reports);
-
-      // Migrate old clients key to projects key
-      const oldClientsData = localStorage.getItem('analyticsHub_clients');
-      if (oldClientsData !== null && localStorage.getItem(KEYS.PROJECTS) === null) {
-        localStorage.setItem(KEYS.PROJECTS, oldClientsData);
-        localStorage.removeItem('analyticsHub_clients');
-      }
-
-      // Initialize new collections if they don't exist
-      if (localStorage.getItem(KEYS.PROJECTS) === null) {
-        saveData(KEYS.PROJECTS, []);
-      }
-      if (localStorage.getItem(KEYS.DOCUMENTS) === null) {
-        saveData(KEYS.DOCUMENTS, []);
-      }
-      if (localStorage.getItem(KEYS.DASHBOARD_LINKS) === null) {
-        saveData(KEYS.DASHBOARD_LINKS, []);
-      }
-      if (localStorage.getItem(KEYS.CONTROL_ITEMS) === null) {
-        saveData(KEYS.CONTROL_ITEMS, []);
-      }
-
-      localStorage.setItem(KEYS.SCHEMA_VERSION, '1');
-    }
-
-    if (currentVersion < 2) {
-      // Migrate clientId → projectId across all entity collections
-      [KEYS.REQUESTS, KEYS.IN_PROGRESS, KEYS.REPORTS, KEYS.DOCUMENTS,
-       KEYS.DASHBOARD_LINKS, KEYS.CONTROL_ITEMS].forEach(key => {
-        const items = getData(key);
-        let changed = false;
-        items.forEach(item => {
-          if (item.clientId !== undefined) {
-            item.projectId = item.clientId;
-            delete item.clientId;
-            changed = true;
-          }
-        });
-        if (changed) saveData(key, items);
-      });
-
-      // Migrate old clients localStorage key to projects
-      const oldClientsData = localStorage.getItem('analyticsHub_clients');
-      if (oldClientsData !== null) {
-        const existing = localStorage.getItem(KEYS.PROJECTS);
-        if (!existing || existing === '[]') {
-          localStorage.setItem(KEYS.PROJECTS, oldClientsData);
-        }
-        localStorage.removeItem('analyticsHub_clients');
-      }
-
-      localStorage.setItem(KEYS.SCHEMA_VERSION, '2');
-    }
-  }
-
   // =====================
   // DIVISIONS (read-only)
   // =====================
 
-  function getDivisions() {
-    return [...DIVISIONS];
+  async function getDivisions() {
+    return ApiClient.get('/api/divisions');
   }
 
-  function getDivisionById(id) {
-    return DIVISIONS.find(d => d.id === id) || null;
+  async function getDivisionById(id) {
+    const divisions = await getDivisions();
+    return divisions.find(d => d.id === id) || null;
   }
 
   // =====================
   // PROJECTS
   // =====================
 
-  function getProjects() {
-    return getData(KEYS.PROJECTS);
+  async function getProjects() {
+    return ApiClient.get('/api/projects');
   }
 
-  function getProjectsByDivision(divisionId) {
-    return getData(KEYS.PROJECTS)
-      .filter(p => p.divisionId === divisionId)
-      .sort((a, b) => a.name.localeCompare(b.name));
+  async function getProjectsByDivision(divisionId) {
+    return ApiClient.get('/api/projects?divisionId=' + encodeURIComponent(divisionId));
   }
 
-  function getProjectById(id) {
-    return getData(KEYS.PROJECTS).find(p => p.id === id) || null;
+  async function getProjectById(id) {
+    return ApiClient.get('/api/projects/' + encodeURIComponent(id));
   }
 
-  function addProject(projectData) {
-    const projects = getData(KEYS.PROJECTS);
-    const newProject = {
-      id: generateId('proj'),
-      name: projectData.name.trim(),
-      divisionId: projectData.divisionId,
-      isActive: true,
-      dateCreated: new Date().toISOString()
-    };
-    projects.push(newProject);
-    saveData(KEYS.PROJECTS, projects);
-    return newProject;
+  async function addProject(projectData) {
+    return ApiClient.post('/api/projects', projectData);
   }
 
-  function updateProject(id, updates) {
-    const projects = getData(KEYS.PROJECTS);
-    const project = projects.find(p => p.id === id);
-    if (project) {
-      Object.assign(project, updates);
-      saveData(KEYS.PROJECTS, projects);
-      return project;
-    }
-    return null;
+  async function updateProject(id, updates) {
+    return ApiClient.put('/api/projects/' + encodeURIComponent(id), updates);
   }
 
-  function deleteProject(id) {
-    const projects = getData(KEYS.PROJECTS).filter(p => p.id !== id);
-    return saveData(KEYS.PROJECTS, projects);
+  async function deleteProject(id) {
+    return ApiClient.delete('/api/projects/' + encodeURIComponent(id));
   }
 
   // =====================
   // REQUESTS
   // =====================
 
-  function sortRequestsByUrgencyAndDate(requests) {
-    const urgencyOrder = { high: 0, medium: 1, low: 2 };
-    return requests.sort((a, b) => {
-      const urgencyDiff = urgencyOrder[a.urgency] - urgencyOrder[b.urgency];
-      if (urgencyDiff !== 0) return urgencyDiff;
-      return new Date(b.dateSubmitted) - new Date(a.dateSubmitted);
-    });
+  async function getRequests() {
+    return ApiClient.get('/api/requests');
   }
 
-  function getRequests() {
-    return sortRequestsByUrgencyAndDate(getData(KEYS.REQUESTS));
+  async function getRequestsByProject(projectId) {
+    return ApiClient.get('/api/requests?projectId=' + encodeURIComponent(projectId));
   }
 
-  function getRequestsByProject(projectId) {
-    const requests = getData(KEYS.REQUESTS).filter(r => r.projectId === projectId);
-    return sortRequestsByUrgencyAndDate(requests);
+  async function getUnassignedRequests() {
+    return ApiClient.get('/api/requests?unassigned=true');
   }
 
-  function getUnassignedRequests() {
-    const requests = getData(KEYS.REQUESTS).filter(r => !r.projectId);
-    return sortRequestsByUrgencyAndDate(requests);
+  async function addRequest(requestData) {
+    return ApiClient.post('/api/requests', requestData);
   }
 
-  function addRequest(requestData) {
-    const requests = getData(KEYS.REQUESTS);
-    const newRequest = {
-      id: generateId('req'),
-      description: requestData.description.trim(),
-      requester: requestData.requester.trim(),
-      urgency: requestData.urgency,
-      divisionId: requestData.divisionId || null,
-      projectId: requestData.projectId || null,
-      dateSubmitted: new Date().toISOString()
-    };
-    requests.push(newRequest);
-    saveData(KEYS.REQUESTS, requests);
-    return newRequest;
+  async function updateRequest(id, updates) {
+    return ApiClient.put('/api/requests/' + encodeURIComponent(id), updates);
   }
 
-  function updateRequest(id, updates) {
-    const requests = getData(KEYS.REQUESTS);
-    const req = requests.find(r => r.id === id);
-    if (req) {
-      Object.assign(req, updates);
-      saveData(KEYS.REQUESTS, requests);
-      return req;
-    }
-    return null;
+  async function deleteRequest(id) {
+    return ApiClient.delete('/api/requests/' + encodeURIComponent(id));
   }
 
-  function deleteRequest(id) {
-    const requests = getData(KEYS.REQUESTS).filter(r => r.id !== id);
-    return saveData(KEYS.REQUESTS, requests);
-  }
-
-  function getRequestById(id) {
-    const requests = getData(KEYS.REQUESTS);
-    return requests.find(r => r.id === id) || null;
+  async function getRequestById(id) {
+    return ApiClient.get('/api/requests/' + encodeURIComponent(id));
   }
 
   // =====================
   // IN PROGRESS
   // =====================
 
-  function getInProgressItems() {
-    return getData(KEYS.IN_PROGRESS);
+  async function getInProgressItems() {
+    return ApiClient.get('/api/in-progress');
   }
 
-  function getInProgressByProject(projectId) {
-    return getData(KEYS.IN_PROGRESS).filter(i => i.projectId === projectId);
+  async function getInProgressByProject(projectId) {
+    return ApiClient.get('/api/in-progress?projectId=' + encodeURIComponent(projectId));
   }
 
-  function getUnassignedInProgress() {
-    return getData(KEYS.IN_PROGRESS).filter(i => !i.projectId);
+  async function getUnassignedInProgress() {
+    return ApiClient.get('/api/in-progress?unassigned=true');
   }
 
-  function addInProgressItem(itemData) {
-    const items = getData(KEYS.IN_PROGRESS);
-    const newItem = {
-      id: generateId('prog'),
-      taskDescription: itemData.taskDescription.trim(),
-      requester: itemData.requester.trim(),
-      status: itemData.status || 'not-started',
-      targetCompletionDate: itemData.targetCompletionDate || null,
-      divisionId: itemData.divisionId || null,
-      projectId: itemData.projectId || null,
-      dateCreated: new Date().toISOString()
-    };
-    items.push(newItem);
-    saveData(KEYS.IN_PROGRESS, items);
-    return newItem;
+  async function addInProgressItem(itemData) {
+    return ApiClient.post('/api/in-progress', itemData);
   }
 
-  function getInProgressById(id) {
-    return getData(KEYS.IN_PROGRESS).find(i => i.id === id) || null;
+  async function getInProgressById(id) {
+    return ApiClient.get('/api/in-progress/' + encodeURIComponent(id));
   }
 
-  function updateInProgressItem(id, updates) {
-    const items = getData(KEYS.IN_PROGRESS);
-    const item = items.find(i => i.id === id);
-    if (item) {
-      Object.assign(item, updates);
-      saveData(KEYS.IN_PROGRESS, items);
-      return item;
-    }
-    return null;
+  async function updateInProgressItem(id, updates) {
+    return ApiClient.put('/api/in-progress/' + encodeURIComponent(id), updates);
   }
 
-  function updateInProgressStatus(id, newStatus) {
-    const items = getData(KEYS.IN_PROGRESS);
-    const item = items.find(i => i.id === id);
-    if (item) {
-      item.status = newStatus;
-      saveData(KEYS.IN_PROGRESS, items);
-      return item;
-    }
-    return null;
+  async function updateInProgressStatus(id, newStatus) {
+    return ApiClient.put('/api/in-progress/' + encodeURIComponent(id), { status: newStatus });
   }
 
-  function deleteInProgressItem(id) {
-    const items = getData(KEYS.IN_PROGRESS).filter(i => i.id !== id);
-    return saveData(KEYS.IN_PROGRESS, items);
+  async function deleteInProgressItem(id) {
+    return ApiClient.delete('/api/in-progress/' + encodeURIComponent(id));
   }
 
   // =====================
   // REPORTS
   // =====================
 
-  function getReports() {
-    return getData(KEYS.REPORTS);
+  async function getReports() {
+    return ApiClient.get('/api/reports');
   }
 
-  function getReportsByProject(projectId, activeOnly = false) {
-    let reports = getData(KEYS.REPORTS).filter(r => r.projectId === projectId);
-    if (activeOnly) reports = reports.filter(r => r.isActive);
-    reports.sort((a, b) => new Date(b.datePublished) - new Date(a.datePublished));
-    return reports;
+  async function getReportsByProject(projectId, activeOnly = false) {
+    let url = '/api/reports?projectId=' + encodeURIComponent(projectId);
+    if (activeOnly) url += '&activeOnly=true';
+    return ApiClient.get(url);
   }
 
-  function getUnassignedReports() {
-    return getData(KEYS.REPORTS).filter(r => !r.projectId);
+  async function getUnassignedReports() {
+    return ApiClient.get('/api/reports?unassigned=true');
   }
 
-  function addReport(reportData) {
-    const reports = getData(KEYS.REPORTS);
-    const newReport = {
-      id: generateId('rpt'),
-      title: reportData.title.trim(),
-      datePublished: reportData.datePublished,
-      description: (reportData.description || '').trim(),
-      linkUrl: (reportData.linkUrl || '').trim(),
-      isActive: reportData.isActive !== false,
-      divisionId: reportData.divisionId || null,
-      projectId: reportData.projectId || null,
-      category: reportData.category || 'recurring'
-    };
-    reports.push(newReport);
-    saveData(KEYS.REPORTS, reports);
-    return newReport;
+  async function addReport(reportData) {
+    return ApiClient.post('/api/reports', reportData);
   }
 
-  function updateReport(id, updates) {
-    const reports = getData(KEYS.REPORTS);
-    const report = reports.find(r => r.id === id);
-    if (report) {
-      Object.assign(report, updates);
-      saveData(KEYS.REPORTS, reports);
-      return report;
-    }
-    return null;
+  async function updateReport(id, updates) {
+    return ApiClient.put('/api/reports/' + encodeURIComponent(id), updates);
   }
 
-  function getReportById(id) {
-    return getData(KEYS.REPORTS).find(r => r.id === id) || null;
+  async function getReportById(id) {
+    return ApiClient.get('/api/reports/' + encodeURIComponent(id));
   }
 
-  function deleteReport(id) {
-    const reports = getData(KEYS.REPORTS).filter(r => r.id !== id);
-    return saveData(KEYS.REPORTS, reports);
+  async function deleteReport(id) {
+    return ApiClient.delete('/api/reports/' + encodeURIComponent(id));
   }
 
   // =====================
   // DOCUMENTS (Zone 1)
   // =====================
 
-  function getDocuments(projectId, category) {
-    let docs = getData(KEYS.DOCUMENTS).filter(d => d.projectId === projectId);
-    if (category) docs = docs.filter(d => d.category === category);
-    docs.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-    return docs;
+  async function getDocuments(projectId, category) {
+    let url = '/api/documents?projectId=' + encodeURIComponent(projectId);
+    if (category) url += '&category=' + encodeURIComponent(category);
+    return ApiClient.get(url);
   }
 
-  function addDocument(docData) {
-    const docs = getData(KEYS.DOCUMENTS);
-    const newDoc = {
-      id: generateId('doc'),
-      projectId: docData.projectId,
-      category: docData.category,
-      title: docData.title.trim(),
-      description: (docData.description || '').trim(),
-      linkUrl: (docData.linkUrl || '').trim(),
-      source: docData.source || 'manual',
-      dateAdded: new Date().toISOString(),
-      datePublished: docData.datePublished || null
-    };
-    docs.push(newDoc);
-    saveData(KEYS.DOCUMENTS, docs);
-    return newDoc;
+  async function addDocument(docData) {
+    return ApiClient.post('/api/documents', docData);
   }
 
-  function updateDocument(id, updates) {
-    const docs = getData(KEYS.DOCUMENTS);
-    const doc = docs.find(d => d.id === id);
-    if (doc) {
-      Object.assign(doc, updates);
-      saveData(KEYS.DOCUMENTS, docs);
-      return doc;
-    }
-    return null;
+  async function updateDocument(id, updates) {
+    return ApiClient.put('/api/documents/' + encodeURIComponent(id), updates);
   }
 
-  function deleteDocument(id) {
-    const docs = getData(KEYS.DOCUMENTS).filter(d => d.id !== id);
-    return saveData(KEYS.DOCUMENTS, docs);
+  async function deleteDocument(id) {
+    return ApiClient.delete('/api/documents/' + encodeURIComponent(id));
   }
 
-  function getDocumentById(id) {
-    return getData(KEYS.DOCUMENTS).find(d => d.id === id) || null;
+  async function getDocumentById(id) {
+    return ApiClient.get('/api/documents/' + encodeURIComponent(id));
   }
 
   // =====================
   // DASHBOARD LINKS (Zone 2)
   // =====================
 
-  function getDashboardLinks(projectId, type) {
-    let links = getData(KEYS.DASHBOARD_LINKS).filter(l => l.projectId === projectId);
-    if (type) links = links.filter(l => l.type === type);
-    links.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-    return links;
+  async function getDashboardLinks(projectId, type) {
+    let url = '/api/dashboard-links?projectId=' + encodeURIComponent(projectId);
+    if (type) url += '&type=' + encodeURIComponent(type);
+    return ApiClient.get(url);
   }
 
-  function addDashboardLink(linkData) {
-    const links = getData(KEYS.DASHBOARD_LINKS);
-    const newLink = {
-      id: generateId('dash'),
-      projectId: linkData.projectId,
-      title: linkData.title.trim(),
-      url: (linkData.url || '').trim(),
-      type: linkData.type || 'performance',
-      description: (linkData.description || '').trim(),
-      dateAdded: new Date().toISOString()
-    };
-    links.push(newLink);
-    saveData(KEYS.DASHBOARD_LINKS, links);
-    return newLink;
+  async function addDashboardLink(linkData) {
+    return ApiClient.post('/api/dashboard-links', linkData);
   }
 
-  function updateDashboardLink(id, updates) {
-    const links = getData(KEYS.DASHBOARD_LINKS);
-    const link = links.find(l => l.id === id);
-    if (link) {
-      Object.assign(link, updates);
-      saveData(KEYS.DASHBOARD_LINKS, links);
-      return link;
-    }
-    return null;
+  async function updateDashboardLink(id, updates) {
+    return ApiClient.put('/api/dashboard-links/' + encodeURIComponent(id), updates);
   }
 
-  function deleteDashboardLink(id) {
-    const links = getData(KEYS.DASHBOARD_LINKS).filter(l => l.id !== id);
-    return saveData(KEYS.DASHBOARD_LINKS, links);
+  async function deleteDashboardLink(id) {
+    return ApiClient.delete('/api/dashboard-links/' + encodeURIComponent(id));
   }
 
-  function getDashboardLinkById(id) {
-    return getData(KEYS.DASHBOARD_LINKS).find(l => l.id === id) || null;
+  async function getDashboardLinkById(id) {
+    return ApiClient.get('/api/dashboard-links/' + encodeURIComponent(id));
   }
 
   // =====================
   // CONTROL ITEMS (Zone 3)
   // =====================
 
-  function getControlItems(projectId) {
-    return getData(KEYS.CONTROL_ITEMS)
-      .filter(c => c.projectId === projectId)
-      .sort((a, b) => {
-        const statusOrder = { overdue: 0, upcoming: 1, current: 2 };
-        return (statusOrder[a.status] || 2) - (statusOrder[b.status] || 2);
-      });
+  async function getControlItems(projectId) {
+    return ApiClient.get('/api/control-items?projectId=' + encodeURIComponent(projectId));
   }
 
-  function addControlItem(itemData) {
-    const items = getData(KEYS.CONTROL_ITEMS);
-    const newItem = {
-      id: generateId('ctrl'),
-      projectId: itemData.projectId,
-      title: itemData.title.trim(),
-      description: (itemData.description || '').trim(),
-      assignee: (itemData.assignee || '').trim(),
-      frequency: itemData.frequency || 'monthly',
-      lastCompleted: itemData.lastCompleted || null,
-      nextDue: itemData.nextDue || null,
-      status: itemData.status || 'current',
-      dateCreated: new Date().toISOString()
-    };
-    items.push(newItem);
-    saveData(KEYS.CONTROL_ITEMS, items);
-    return newItem;
+  async function addControlItem(itemData) {
+    return ApiClient.post('/api/control-items', itemData);
   }
 
-  function getControlItemById(id) {
-    return getData(KEYS.CONTROL_ITEMS).find(i => i.id === id) || null;
+  async function getControlItemById(id) {
+    return ApiClient.get('/api/control-items/' + encodeURIComponent(id));
   }
 
-  function updateControlItem(id, updates) {
-    const items = getData(KEYS.CONTROL_ITEMS);
-    const item = items.find(i => i.id === id);
-    if (item) {
-      Object.assign(item, updates);
-      saveData(KEYS.CONTROL_ITEMS, items);
-      return item;
-    }
-    return null;
+  async function updateControlItem(id, updates) {
+    return ApiClient.put('/api/control-items/' + encodeURIComponent(id), updates);
   }
 
-  function deleteControlItem(id) {
-    const items = getData(KEYS.CONTROL_ITEMS).filter(i => i.id !== id);
-    return saveData(KEYS.CONTROL_ITEMS, items);
+  async function deleteControlItem(id) {
+    return ApiClient.delete('/api/control-items/' + encodeURIComponent(id));
   }
 
   // =====================
@@ -550,9 +245,6 @@ const DataStore = (function() {
   // PUBLIC API
   // =====================
   return {
-    // Migration
-    runMigration,
-
     // Divisions (read-only)
     getDivisions,
     getDivisionById,
@@ -615,9 +307,6 @@ const DataStore = (function() {
     deleteControlItem,
 
     // Utilities
-    filterBySearchTerm,
-    generateId,
-    getData,
-    saveData
+    filterBySearchTerm
   };
 })();

@@ -15,8 +15,18 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Dependencies (if added later)
+# Dependencies
 node_modules/
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/*.zip
+
+# Lambda build artifacts
+lambda/*.zip
 
 # Temporary files
 tmp/

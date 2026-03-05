@@ -57,14 +57,17 @@ const ZoneRenderer = (function() {
   // ZONE 1: REPORTS & DOCUMENTS
   // =====================
 
-  function renderZone1(container, projectId) {
+  async function renderZone1(container, projectId) {
     const state = AppRouter.getState();
-    const legalDocs = DataStore.getDocuments(projectId, 'legal');
-    const pricingDocs = DataStore.getDocuments(projectId, 'pricing');
-    const recurringDocs = DataStore.getDocuments(projectId, 'recurring');
-    let reports = DataStore.getReportsByProject(projectId, state.showActiveProjectsOnly);
+    const [legalDocs, pricingDocs, recurringDocs, allReports] = await Promise.all([
+      DataStore.getDocuments(projectId, 'legal'),
+      DataStore.getDocuments(projectId, 'pricing'),
+      DataStore.getDocuments(projectId, 'recurring'),
+      DataStore.getReportsByProject(projectId, state.showActiveProjectsOnly)
+    ]);
 
     // Apply reports search
+    let reports = allReports;
     if (state.reportsSearchTerm) {
       reports = DataStore.filterBySearchTerm(reports, state.reportsSearchTerm, ['title', 'description']);
     }
@@ -329,9 +332,9 @@ const ZoneRenderer = (function() {
     // Document form submit
     const docForm = container.querySelector('#new-document-form');
     if (docForm) {
-      docForm.addEventListener('submit', (e) => {
+      docForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        DataStore.addDocument({
+        await DataStore.addDocument({
           projectId: projectId,
           category: document.getElementById('doc-category').value,
           title: document.getElementById('doc-title').value,
@@ -339,17 +342,17 @@ const ZoneRenderer = (function() {
           linkUrl: document.getElementById('doc-link').value,
           source: document.getElementById('doc-source').value
         });
-        renderZone1(container, projectId);
+        await renderZone1(container, projectId);
       });
     }
 
     // Report form submit
     const rptForm = container.querySelector('#new-report-form');
     if (rptForm) {
-      rptForm.addEventListener('submit', (e) => {
+      rptForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const project = DataStore.getProjectById(projectId);
-        DataStore.addReport({
+        const project = await DataStore.getProjectById(projectId);
+        await DataStore.addReport({
           projectId: projectId,
           divisionId: project ? project.divisionId : null,
           title: document.getElementById('report-title').value,
@@ -359,7 +362,7 @@ const ZoneRenderer = (function() {
           isActive: document.getElementById('report-active').checked,
           category: 'recurring'
         });
-        renderZone1(container, projectId);
+        await renderZone1(container, projectId);
       });
     }
 
@@ -380,7 +383,7 @@ const ZoneRenderer = (function() {
     }
 
     // Delete actions and card click (event delegation)
-    container.addEventListener('click', (e) => {
+    container.addEventListener('click', async (e) => {
       // Handle action buttons first
       const btn = e.target.closest('[data-action]');
       if (btn) {
@@ -389,13 +392,13 @@ const ZoneRenderer = (function() {
 
         if (action === 'delete-document') {
           if (confirm('Delete this document?')) {
-            DataStore.deleteDocument(id);
-            renderZone1(container, projectId);
+            await DataStore.deleteDocument(id);
+            await renderZone1(container, projectId);
           }
         } else if (action === 'delete-report') {
           if (confirm('Delete this report?')) {
-            DataStore.deleteReport(id);
-            renderZone1(container, projectId);
+            await DataStore.deleteReport(id);
+            await renderZone1(container, projectId);
           }
         }
         return;
@@ -416,9 +419,12 @@ const ZoneRenderer = (function() {
   // ZONE 2: PERFORMANCE MONITORING
   // =====================
 
-  function renderZone2(container, projectId) {
-    const perfLinks = DataStore.getDashboardLinks(projectId, 'performance');
-    const valLinks = DataStore.getDashboardLinks(projectId).filter(l => l.type === 'valuation' || l.type === 'impairment');
+  async function renderZone2(container, projectId) {
+    const [perfLinks, allLinks] = await Promise.all([
+      DataStore.getDashboardLinks(projectId, 'performance'),
+      DataStore.getDashboardLinks(projectId)
+    ]);
+    const valLinks = allLinks.filter(l => l.type === 'valuation' || l.type === 'impairment');
 
     container.innerHTML = `
       <div class="zone-layout">
@@ -540,26 +546,26 @@ const ZoneRenderer = (function() {
     // Form submit
     const form = container.querySelector('#new-dashboard-form');
     if (form) {
-      form.addEventListener('submit', (e) => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        DataStore.addDashboardLink({
+        await DataStore.addDashboardLink({
           projectId: projectId,
           title: document.getElementById('dash-title').value,
           url: document.getElementById('dash-url').value,
           type: document.getElementById('dash-type').value,
           description: document.getElementById('dash-description').value
         });
-        renderZone2(container, projectId);
+        await renderZone2(container, projectId);
       });
     }
 
     // Delete actions and card click
-    container.addEventListener('click', (e) => {
+    container.addEventListener('click', async (e) => {
       const btn = e.target.closest('[data-action="delete-dashboard"]');
       if (btn) {
         if (confirm('Delete this dashboard link?')) {
-          DataStore.deleteDashboardLink(btn.dataset.id);
-          renderZone2(container, projectId);
+          await DataStore.deleteDashboardLink(btn.dataset.id);
+          await renderZone2(container, projectId);
         }
         return;
       }
@@ -579,13 +585,17 @@ const ZoneRenderer = (function() {
   // ZONE 3: CONTROLS & OVERSIGHT
   // =====================
 
-  function renderZone3(container, projectId) {
+  async function renderZone3(container, projectId) {
     const state = AppRouter.getState();
-    const controls = DataStore.getControlItems(projectId);
-    let requests = DataStore.getRequestsByProject(projectId);
-    let inProgress = DataStore.getInProgressByProject(projectId);
+    const [controls, allRequests, allInProgress] = await Promise.all([
+      DataStore.getControlItems(projectId),
+      DataStore.getRequestsByProject(projectId),
+      DataStore.getInProgressByProject(projectId)
+    ]);
 
     // Apply global search
+    let requests = allRequests;
+    let inProgress = allInProgress;
     if (state.globalSearchTerm) {
       requests = DataStore.filterBySearchTerm(requests, state.globalSearchTerm, ['description', 'requester']);
       inProgress = DataStore.filterBySearchTerm(inProgress, state.globalSearchTerm, ['taskDescription', 'requester']);
@@ -882,9 +892,9 @@ const ZoneRenderer = (function() {
     // Control form submit
     const controlForm = container.querySelector('#new-control-form');
     if (controlForm) {
-      controlForm.addEventListener('submit', (e) => {
+      controlForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        DataStore.addControlItem({
+        await DataStore.addControlItem({
           projectId: projectId,
           title: document.getElementById('ctrl-title').value,
           description: document.getElementById('ctrl-description').value,
@@ -893,34 +903,34 @@ const ZoneRenderer = (function() {
           nextDue: document.getElementById('ctrl-next-due').value || null,
           status: document.getElementById('ctrl-status').value
         });
-        renderZone3(container, projectId);
+        await renderZone3(container, projectId);
       });
     }
 
     // Request form submit
     const requestForm = container.querySelector('#new-request-form');
     if (requestForm) {
-      requestForm.addEventListener('submit', (e) => {
+      requestForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const project = DataStore.getProjectById(projectId);
-        DataStore.addRequest({
+        const project = await DataStore.getProjectById(projectId);
+        await DataStore.addRequest({
           projectId: projectId,
           divisionId: project ? project.divisionId : null,
           description: document.getElementById('request-description').value,
           requester: document.getElementById('request-requester').value,
           urgency: document.getElementById('request-urgency').value
         });
-        renderZone3(container, projectId);
+        await renderZone3(container, projectId);
       });
     }
 
     // Progress form submit
     const progressForm = container.querySelector('#new-progress-form');
     if (progressForm) {
-      progressForm.addEventListener('submit', (e) => {
+      progressForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const project = DataStore.getProjectById(projectId);
-        DataStore.addInProgressItem({
+        const project = await DataStore.getProjectById(projectId);
+        await DataStore.addInProgressItem({
           projectId: projectId,
           divisionId: project ? project.divisionId : null,
           taskDescription: document.getElementById('progress-description').value,
@@ -928,18 +938,18 @@ const ZoneRenderer = (function() {
           status: document.getElementById('progress-status').value,
           targetCompletionDate: document.getElementById('progress-target-date').value || null
         });
-        renderZone3(container, projectId);
+        await renderZone3(container, projectId);
       });
     }
 
     // Status change (event delegation)
-    container.addEventListener('change', (e) => {
+    container.addEventListener('change', async (e) => {
       if (!e.target.classList.contains('status-select')) return;
-      DataStore.updateInProgressStatus(e.target.dataset.id, e.target.value);
+      await DataStore.updateInProgressStatus(e.target.dataset.id, e.target.value);
     });
 
     // Action buttons and card click (event delegation)
-    container.addEventListener('click', (e) => {
+    container.addEventListener('click', async (e) => {
       const btn = e.target.closest('[data-action]');
       if (btn) {
         const action = btn.dataset.action;
@@ -948,27 +958,27 @@ const ZoneRenderer = (function() {
         switch (action) {
           case 'delete-control':
             if (confirm('Delete this control item?')) {
-              DataStore.deleteControlItem(id);
-              renderZone3(container, projectId);
+              await DataStore.deleteControlItem(id);
+              await renderZone3(container, projectId);
             }
             break;
           case 'complete-control':
-            DataStore.updateControlItem(id, {
+            await DataStore.updateControlItem(id, {
               lastCompleted: new Date().toISOString(),
               status: 'current'
             });
-            renderZone3(container, projectId);
+            await renderZone3(container, projectId);
             break;
           case 'delete-request':
             if (confirm('Delete this request?')) {
-              DataStore.deleteRequest(id);
-              renderZone3(container, projectId);
+              await DataStore.deleteRequest(id);
+              await renderZone3(container, projectId);
             }
             break;
           case 'promote':
-            const request = DataStore.getRequestById(id);
+            const request = await DataStore.getRequestById(id);
             if (request) {
-              DataStore.addInProgressItem({
+              await DataStore.addInProgressItem({
                 taskDescription: request.description,
                 requester: request.requester,
                 status: 'not-started',
@@ -976,19 +986,19 @@ const ZoneRenderer = (function() {
                 projectId: projectId,
                 divisionId: request.divisionId
               });
-              DataStore.deleteRequest(id);
-              renderZone3(container, projectId);
+              await DataStore.deleteRequest(id);
+              await renderZone3(container, projectId);
             }
             break;
           case 'delete-progress':
             if (confirm('Delete this item?')) {
-              DataStore.deleteInProgressItem(id);
-              renderZone3(container, projectId);
+              await DataStore.deleteInProgressItem(id);
+              await renderZone3(container, projectId);
             }
             break;
           case 'complete-progress':
-            DataStore.deleteInProgressItem(id);
-            renderZone3(container, projectId);
+            await DataStore.deleteInProgressItem(id);
+            await renderZone3(container, projectId);
             break;
         }
         return;

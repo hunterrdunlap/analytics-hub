@@ -1,0 +1,9 @@
+{
+  "name": "analytics-hub-lambda",
+  "version": "1.0.0",
+  "description": "Analytics Hub Lambda functions",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0"
+  }
+}
