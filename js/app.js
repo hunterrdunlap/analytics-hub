@@ -108,15 +108,14 @@ const App = (function() {
     let html = '<div class="nav-list">';
 
     for (const div of divisions) {
-      let projects = await DataStore.getProjectsByDivision(div.id);
+      const allProjects = await DataStore.getProjectsByDivision(div.id);
 
       // Filter projects by search term
-      if (projectSearchTerm) {
-        projects = projects.filter(p => p.name.toLowerCase().includes(projectSearchTerm));
-      }
+      const projects = projectSearchTerm
+        ? allProjects.filter(p => p.name.toLowerCase().includes(projectSearchTerm))
+        : allProjects;
 
       const isExpanded = state.expandedDivisions.includes(div.id);
-      const allProjects = await DataStore.getProjectsByDivision(div.id);
 
       html += `
         <div class="nav-group ${isExpanded ? 'expanded' : ''}">
@@ -149,6 +148,7 @@ const App = (function() {
 
   async function renderMainContent() {
     const state = AppRouter.getState();
+    showLoading(elements.mainContent);
 
     switch (state.currentView) {
       case 'home':
@@ -296,6 +296,7 @@ const App = (function() {
 
     // Render active zone
     const zoneContent = document.getElementById('zone-content');
+    showLoading(zoneContent, { inline: true });
     switch (activeZone) {
       case 1:
         await ZoneRenderer.renderZone1(zoneContent, projectId);
@@ -414,6 +415,36 @@ const App = (function() {
         }
       }
     });
+  }
+
+  // =====================
+  // LOADING INDICATORS
+  // =====================
+
+  const _loadingTimers = new WeakMap();
+
+  function showLoading(container, { inline = false, delay = 150 } = {}) {
+    // Clear any existing timer
+    hideLoading(container);
+    const timer = setTimeout(() => {
+      // Only show if container hasn't been replaced with real content
+      if (!container.querySelector('.loading-container')) {
+        const div = document.createElement('div');
+        div.className = `loading-container${inline ? ' loading-inline' : ''}`;
+        div.innerHTML = '<div class="loading-spinner"></div>';
+        container.innerHTML = '';
+        container.appendChild(div);
+      }
+    }, delay);
+    _loadingTimers.set(container, timer);
+  }
+
+  function hideLoading(container) {
+    const timer = _loadingTimers.get(container);
+    if (timer) {
+      clearTimeout(timer);
+      _loadingTimers.delete(container);
+    }
   }
 
   // =====================

@@ -420,10 +420,8 @@ const ZoneRenderer = (function() {
   // =====================
 
   async function renderZone2(container, projectId) {
-    const [perfLinks, allLinks] = await Promise.all([
-      DataStore.getDashboardLinks(projectId, 'performance'),
-      DataStore.getDashboardLinks(projectId)
-    ]);
+    const allLinks = await DataStore.getDashboardLinks(projectId);
+    const perfLinks = allLinks.filter(l => l.type === 'performance');
     const valLinks = allLinks.filter(l => l.type === 'valuation' || l.type === 'impairment');
 
     container.innerHTML = `
