@@ -89,17 +89,15 @@ This starts API Gateway + Lambda locally on `http://localhost:3000`. The SAM tem
 
 ### 3. Serve the Frontend
 
-From the project root:
+Use a server that disables caching so the browser always picks up JS changes:
 
 ```bash
-# Python
-python3 -m http.server 8080
-
-# or Node
-npx serve -p 8080
+npx http-server -p 8080 -c-1
 ```
 
 Then open [http://localhost:8080](http://localhost:8080).
+
+> `python3 -m http.server` works but the browser will aggressively cache JS files, meaning code changes won't be picked up until you hard-refresh (Ctrl+Shift+R / Cmd+Shift+R).
 
 ### 4. Point the Frontend at the Local API
 

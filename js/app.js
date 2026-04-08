@@ -93,8 +93,32 @@ const App = (function() {
   // MASTER RENDER
   // =====================
 
+  let _prevRenderState = null;
+
   async function render() {
-    await Promise.all([renderSidebar(), renderMainContent()]);
+    const state = AppRouter.getState();
+    const prev = _prevRenderState;
+    _prevRenderState = structuredClone(state);
+
+    // Sidebar only cares about which project is selected and which divisions are expanded
+    const sidebarChanged = !prev
+      || prev.selectedProjectId !== state.selectedProjectId
+      || prev.expandedDivisions.length !== state.expandedDivisions.length
+      || prev.expandedDivisions.some((id, i) => state.expandedDivisions[i] !== id);
+
+    // Main content cares about everything except sidebar-only changes
+    const mainChanged = !prev
+      || prev.currentView !== state.currentView
+      || prev.selectedProjectId !== state.selectedProjectId
+      || prev.activeZone !== state.activeZone
+      || prev.globalSearchTerm !== state.globalSearchTerm
+      || prev.reportsSearchTerm !== state.reportsSearchTerm
+      || prev.showActiveProjectsOnly !== state.showActiveProjectsOnly;
+
+    const tasks = [];
+    if (sidebarChanged) tasks.push(renderSidebar());
+    if (mainChanged) tasks.push(renderMainContent());
+    await Promise.all(tasks);
   }
 
   // =====================

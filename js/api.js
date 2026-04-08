@@ -11,7 +11,7 @@ const ApiClient = (function() {
   // Inflight: key = URL path, value = Promise (request coalescing)
   const _inflight = new Map();
 
-  const DEFAULT_TTL = 7000;          // 7 seconds
+  const DEFAULT_TTL = 2 * 60000;     // 2 minutes (mutations invalidate immediately)
   const DIVISIONS_TTL = 5 * 60000;   // 5 minutes (static data)
 
   function getBaseUrl() {
