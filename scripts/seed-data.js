@@ -37,7 +37,12 @@ const TABLE_MAP = {
   controlItems: `${PREFIX}-control-items`
 };
 
-const client = new DynamoDBClient({ region: REGION });
+const ENDPOINT = process.env.AWS_ENDPOINT_URL_DYNAMODB;
+
+const client = new DynamoDBClient({
+  region: REGION,
+  ...(ENDPOINT && { endpoint: ENDPOINT }),
+});
 const docClient = DynamoDBDocumentClient.from(client);
 
 async function batchWrite(tableName, items) {

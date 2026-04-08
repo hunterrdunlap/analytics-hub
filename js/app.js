@@ -217,6 +217,7 @@ const App = (function() {
       `;
     }
 
+    hideLoading(elements.mainContent);
     elements.mainContent.innerHTML = `
       <div class="home-dashboard">
         <div class="home-section">
@@ -272,6 +273,7 @@ const App = (function() {
     elements.pageTitle.textContent = project.name;
     elements.pageSubtitle.textContent = division ? division.name : '';
 
+    hideLoading(elements.mainContent);
     elements.mainContent.innerHTML = `
       <div class="project-view">
         <div class="zone-tabs" role="tablist">
@@ -296,7 +298,6 @@ const App = (function() {
 
     // Render active zone
     const zoneContent = document.getElementById('zone-content');
-    showLoading(zoneContent, { inline: true });
     switch (activeZone) {
       case 1:
         await ZoneRenderer.renderZone1(zoneContent, projectId);
@@ -382,6 +383,7 @@ const App = (function() {
     }
 
     html += `</div>`;
+    hideLoading(elements.mainContent);
     elements.mainContent.innerHTML = html;
 
     // Bind add project form

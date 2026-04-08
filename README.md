@@ -33,8 +33,10 @@ lambda/                 # Lambda handlers (one per entity) + shared utilities
   requests/             # Requests CRUD
   in-progress/          # In-progress items CRUD
 terraform/              # IaC — modules/database, modules/lambda, modules/api
+template.yaml           # SAM template for local development
 scripts/
   deploy.sh             # Terraform apply + updates config.js with API URL
+  setup-local-db.sh     # Creates DynamoDB tables in DynamoDB Local
   seed-data.js          # Migrates localStorage export into DynamoDB
 ```
 
@@ -45,20 +47,82 @@ scripts/
 - All tables use `id` as partition key with a GSI on `projectId` (or `divisionId` for projects)
 - ID prefixes: `proj`, `req`, `prog`, `rpt`, `doc`, `dash`, `ctrl`
 
-## Deploying
+## Local Development
+
+Uses [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) to run the real Lambda functions and API Gateway locally — no separate server to maintain.
+
+### Prerequisites
+
+- [Docker](https://www.docker.com/) (required for both DynamoDB Local and SAM)
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
+- [AWS CLI](https://aws.amazon.com/cli/) (for creating local DynamoDB tables)
+- [Node.js](https://nodejs.org/) 20.x or later
+
+### 1. Start DynamoDB Local
+
+Create a shared Docker network (run once):
+
+```bash
+docker network create analytics-hub-local
+```
+
+Start DynamoDB Local on that network:
+
+```bash
+docker run -d --network analytics-hub-local --name dynamodb-local -p 8000:8000 amazon/dynamodb-local
+```
+
+Create the tables (run once):
+
+```bash
+./scripts/setup-local-db.sh
+```
+
+### 2. Start the Local API
+
+```bash
+cd lambda && npm install && cd ..
+sam local start-api --warm-containers EAGER --docker-network analytics-hub-local
+```
+
+This starts API Gateway + Lambda locally on `http://localhost:3000`. The SAM template (`template.yaml`) maps every route to the same Lambda handlers used in production. The `--warm-containers EAGER` flag keeps containers warm so subsequent requests are fast.
+
+### 3. Serve the Frontend
+
+From the project root:
+
+```bash
+# Python
+python3 -m http.server 8080
+
+# or Node
+npx serve -p 8080
+```
+
+Then open [http://localhost:8080](http://localhost:8080).
+
+### 4. Point the Frontend at the Local API
+
+Edit `js/config.js`:
+
+```js
+const AppConfig = {
+  API_BASE_URL: 'http://localhost:3000/'
+};
+```
+
+### 5. Seed Data (Optional)
+
+Import data from a localStorage export into local DynamoDB:
+
+```bash
+AWS_ENDPOINT_URL_DYNAMODB=http://localhost:8000 node scripts/seed-data.js <export-file.json>
+```
+
+## Deploying to AWS
 
 ```bash
 ./scripts/deploy.sh
 ```
 
 This runs `terraform apply` and writes the API Gateway URL into `js/config.js`. The frontend is static — push to `main` and GitHub Pages picks it up.
-
-## Local Development
-
-Open `index.html` directly in a browser. The app will call the deployed API — no local server needed.
-
-To seed data from a localStorage export:
-
-```bash
-node scripts/seed-data.js <export-file.json>
-```

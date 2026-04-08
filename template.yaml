@@ -1,0 +1,292 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Analytics Hub - Local development (SAM)
+
+Globals:
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins:
+        - '*'
+      AllowHeaders:
+        - Content-Type
+        - Authorization
+      AllowMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 10
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        AWS_ENDPOINT_URL_DYNAMODB: http://dynamodb-local:8000
+
+Resources:
+  # --- Divisions (read-only, no table) ---
+  DivisionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: divisions/index.handler
+      CodeUri: lambda/
+      Events:
+        GetAll:
+          Type: HttpApi
+          Properties:
+            Path: /api/divisions
+            Method: GET
+
+  # --- Projects ---
+  ProjectsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: projects/index.handler
+      CodeUri: lambda/
+      Environment:
+        Variables:
+          TABLE_NAME: analytics-hub-dev-projects
+      Events:
+        GetAll:
+          Type: HttpApi
+          Properties:
+            Path: /api/projects
+            Method: GET
+        GetOne:
+          Type: HttpApi
+          Properties:
+            Path: /api/projects/{id}
+            Method: GET
+        Create:
+          Type: HttpApi
+          Properties:
+            Path: /api/projects
+            Method: POST
+        Update:
+          Type: HttpApi
+          Properties:
+            Path: /api/projects/{id}
+            Method: PUT
+        Delete:
+          Type: HttpApi
+          Properties:
+            Path: /api/projects/{id}
+            Method: DELETE
+
+  # --- Requests ---
+  RequestsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: requests/index.handler
+      CodeUri: lambda/
+      Environment:
+        Variables:
+          TABLE_NAME: analytics-hub-dev-requests
+      Events:
+        GetAll:
+          Type: HttpApi
+          Properties:
+            Path: /api/requests
+            Method: GET
+        GetOne:
+          Type: HttpApi
+          Properties:
+            Path: /api/requests/{id}
+            Method: GET
+        Create:
+          Type: HttpApi
+          Properties:
+            Path: /api/requests
+            Method: POST
+        Update:
+          Type: HttpApi
+          Properties:
+            Path: /api/requests/{id}
+            Method: PUT
+        Delete:
+          Type: HttpApi
+          Properties:
+            Path: /api/requests/{id}
+            Method: DELETE
+
+  # --- In-Progress ---
+  InProgressFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: in-progress/index.handler
+      CodeUri: lambda/
+      Environment:
+        Variables:
+          TABLE_NAME: analytics-hub-dev-in-progress
+      Events:
+        GetAll:
+          Type: HttpApi
+          Properties:
+            Path: /api/in-progress
+            Method: GET
+        GetOne:
+          Type: HttpApi
+          Properties:
+            Path: /api/in-progress/{id}
+            Method: GET
+        Create:
+          Type: HttpApi
+          Properties:
+            Path: /api/in-progress
+            Method: POST
+        Update:
+          Type: HttpApi
+          Properties:
+            Path: /api/in-progress/{id}
+            Method: PUT
+        Delete:
+          Type: HttpApi
+          Properties:
+            Path: /api/in-progress/{id}
+            Method: DELETE
+
+  # --- Reports ---
+  ReportsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: reports/index.handler
+      CodeUri: lambda/
+      Environment:
+        Variables:
+          TABLE_NAME: analytics-hub-dev-reports
+      Events:
+        GetAll:
+          Type: HttpApi
+          Properties:
+            Path: /api/reports
+            Method: GET
+        GetOne:
+          Type: HttpApi
+          Properties:
+            Path: /api/reports/{id}
+            Method: GET
+        Create:
+          Type: HttpApi
+          Properties:
+            Path: /api/reports
+            Method: POST
+        Update:
+          Type: HttpApi
+          Properties:
+            Path: /api/reports/{id}
+            Method: PUT
+        Delete:
+          Type: HttpApi
+          Properties:
+            Path: /api/reports/{id}
+            Method: DELETE
+
+  # --- Documents ---
+  DocumentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: documents/index.handler
+      CodeUri: lambda/
+      Environment:
+        Variables:
+          TABLE_NAME: analytics-hub-dev-documents
+      Events:
+        GetAll:
+          Type: HttpApi
+          Properties:
+            Path: /api/documents
+            Method: GET
+        GetOne:
+          Type: HttpApi
+          Properties:
+            Path: /api/documents/{id}
+            Method: GET
+        Create:
+          Type: HttpApi
+          Properties:
+            Path: /api/documents
+            Method: POST
+        Update:
+          Type: HttpApi
+          Properties:
+            Path: /api/documents/{id}
+            Method: PUT
+        Delete:
+          Type: HttpApi
+          Properties:
+            Path: /api/documents/{id}
+            Method: DELETE
+
+  # --- Dashboard Links ---
+  DashboardLinksFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dashboard-links/index.handler
+      CodeUri: lambda/
+      Environment:
+        Variables:
+          TABLE_NAME: analytics-hub-dev-dashboard-links
+      Events:
+        GetAll:
+          Type: HttpApi
+          Properties:
+            Path: /api/dashboard-links
+            Method: GET
+        GetOne:
+          Type: HttpApi
+          Properties:
+            Path: /api/dashboard-links/{id}
+            Method: GET
+        Create:
+          Type: HttpApi
+          Properties:
+            Path: /api/dashboard-links
+            Method: POST
+        Update:
+          Type: HttpApi
+          Properties:
+            Path: /api/dashboard-links/{id}
+            Method: PUT
+        Delete:
+          Type: HttpApi
+          Properties:
+            Path: /api/dashboard-links/{id}
+            Method: DELETE
+
+  # --- Control Items ---
+  ControlItemsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: control-items/index.handler
+      CodeUri: lambda/
+      Environment:
+        Variables:
+          TABLE_NAME: analytics-hub-dev-control-items
+      Events:
+        GetAll:
+          Type: HttpApi
+          Properties:
+            Path: /api/control-items
+            Method: GET
+        GetOne:
+          Type: HttpApi
+          Properties:
+            Path: /api/control-items/{id}
+            Method: GET
+        Create:
+          Type: HttpApi
+          Properties:
+            Path: /api/control-items
+            Method: POST
+        Update:
+          Type: HttpApi
+          Properties:
+            Path: /api/control-items/{id}
+            Method: PUT
+        Delete:
+          Type: HttpApi
+          Properties:
+            Path: /api/control-items/{id}
+            Method: DELETE
